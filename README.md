@@ -25,6 +25,10 @@ streamlit run muhimme_app.py
    Documente) comută automat la datele reale extrase din volumul încărcat.
 3. Fila „Volum PDF” rămâne pentru gestionarea volumelor sursă (listă,
    vizualizare, căutare brută).
+4. (Opțional) Adaugă o cheie API Anthropic în bara laterală pentru a
+   traduce aproximativ, cu AI, textul otoman al oricărui hüküm în română —
+   direct din fila „Documente”. Cheia nu este salvată, doar folosită în
+   sesiunea curentă.
 
 Fără niciun volum încărcat, aplicația arată un corpus demonstrativ fictiv,
 folosit doar pentru a ilustra mecanismele interfeței.

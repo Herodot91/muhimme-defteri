@@ -10,6 +10,11 @@ import re
 import base64
 from pypdf import PdfReader
 
+try:
+    import anthropic
+except ImportError:
+    anthropic = None
+
 # -------------------------------------------------------
 # PAGE CONFIG
 # -------------------------------------------------------
@@ -549,6 +554,25 @@ def render_node_details(clicked_node, entries_for_node, empty_hint):
             "fila „📄 Documente” pentru filtrare completă."
         )
 
+@st.cache_data(show_spinner="Se traduce în română...")
+def translate_to_romanian(text, api_key, model="claude-sonnet-5"):
+    client = anthropic.Anthropic(api_key=api_key)
+    response = client.messages.create(
+        model=model,
+        max_tokens=1500,
+        messages=[{
+            "role": "user",
+            "content": (
+                "Tradu în limba română textul otoman de mai jos, dintr-un "
+                "hüküm (ordin imperial) din Mühimme Defterleri. Este otomană "
+                "chancery, transliterată. Redă o traducere aproximativă, "
+                "naturală, fără comentarii sau explicații suplimentare — "
+                "doar traducerea.\n\n" + text
+            )
+        }]
+    )
+    return response.content[0].text
+
 # -------------------------------------------------------
 # DATA UPLOAD
 # -------------------------------------------------------
@@ -628,6 +652,22 @@ all_entries = [e for v in volumes for e in v["entries"]]
 # once any PDF is uploaded, so there is only ever ONE dashboard, not two.
 pdf_corpus_entries = [e for e in all_entries if e["regions"] or e["fortresses"]]
 has_pdf = len(pdf_corpus_entries) > 0
+
+st.sidebar.header("🔤 Traducere AI (opțional)")
+
+anthropic_api_key = st.sidebar.text_input(
+    "Cheie API Anthropic",
+    type="password",
+    help=(
+        "Necesară doar pentru a traduce aproximativ textul otoman al "
+        "hükümurilor în română, în fila „📄 Documente”. Cheia nu este "
+        "salvată — se folosește doar în această sesiune."
+    ),
+    key="anthropic_api_key"
+)
+
+if anthropic_api_key and anthropic is None:
+    st.sidebar.error("Pachetul „anthropic” nu este instalat pe server.")
 
 # -------------------------------------------------------
 # FILTERS
@@ -1535,6 +1575,31 @@ with tabs[6]:
 
                 st.markdown("#### Text integral")
                 st.text(doc["full_text"][:3000])
+
+                st.markdown("#### Traducere (aproximativă, AI)")
+
+                if not anthropic_api_key:
+                    st.caption(
+                        "Adaugă o cheie API Anthropic în bara laterală "
+                        "(„🔤 Traducere AI”) pentru a activa traducerea."
+                    )
+                elif anthropic is None:
+                    st.caption("Pachetul „anthropic” nu este instalat pe server.")
+                else:
+                    translate_key = f"translate_{doc['volume']}_{doc['num']}"
+                    if st.button("Tradu în română", key=translate_key):
+                        try:
+                            translation = translate_to_romanian(
+                                doc["full_text"][:3000], anthropic_api_key
+                            )
+                            st.write(translation)
+                        except Exception as e:
+                            st.error(f"Eroare la traducere: {e}")
+                    st.caption(
+                        "Traducere automată generată de un model AI, "
+                        "aproximativă — necesită verificare filologică, nu "
+                        "înlocuiește textul original."
+                    )
 
     else:
 
