@@ -1,8 +1,8 @@
 # Mühimme Defterleri — Instrument de cercetare
 
 Instrument de cercetare istorică, rezultat final al comunicării științifice
-*„Metode digitale în cercetarea surselor din arhivele otomane: cazul
-Mühimme Defterleri”*.
+*„Metode digitale în cercetarea surselor din materiale arhivistice publice:
+cazul Mühimme Defterleri”*.
 
 Aplicația transformă informațiile din **Mühimme Defterleri** (registrele
 otomane de ordine imperiale) într-un corpus structurat care permite analiza

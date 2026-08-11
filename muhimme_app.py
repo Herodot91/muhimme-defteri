@@ -25,12 +25,12 @@ st.set_page_config(
 # -------------------------------------------------------
 
 st.title("📜 Moldova, Țara Românească și Erdel în Mühimme Defterleri")
-st.subheader("Instrument de cercetare istorică — metode digitale aplicate arhivelor otomane")
+st.subheader("Instrument de cercetare istorică — metode digitale aplicate materialelor arhivistice publice")
 
 st.markdown(
     """
     **Rezultat final al comunicării științifice** *„Metode digitale în
-    cercetarea surselor din arhivele otomane: cazul Mühimme Defterleri”*.
+    cercetarea surselor din materiale arhivistice publice: cazul Mühimme Defterleri”*.
 
     Aceasta nu este o demonstrație tehnică — este un instrument gândit
     pentru folosirea directă de către istoric: transformă informațiile din
@@ -1769,7 +1769,7 @@ st.caption(
     """
     Mühimme Defterleri — instrument de cercetare istorică, rezultat final al
     comunicării științifice „Metode digitale în cercetarea surselor din
-    arhivele otomane: cazul Mühimme Defterleri”. Analiza cantitativă și
+    materiale arhivistice publice: cazul Mühimme Defterleri”. Analiza cantitativă și
     vizualizarea completează, nu înlocuiesc, critica sursei și cercetarea
     arhivistică.
     """
