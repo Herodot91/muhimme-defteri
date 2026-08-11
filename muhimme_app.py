@@ -15,7 +15,7 @@ from pypdf import PdfReader
 # -------------------------------------------------------
 
 st.set_page_config(
-    page_title="Mühimme Defterleri — Instrument de cercetare",
+    page_title="Mühimme Defterleri — Metode digitale în prelucrarea materialelor arhivistice otomane publicate",
     page_icon="📜",
     layout="wide"
 )
@@ -25,12 +25,12 @@ st.set_page_config(
 # -------------------------------------------------------
 
 st.title("📜 Moldova, Țara Românească și Erdel în Mühimme Defterleri")
-st.subheader("Instrument de cercetare istorică — metode digitale aplicate materialelor arhivistice publice")
+st.subheader("Metode digitale în prelucrarea materialelor arhivistice otomane publicate")
 
 st.markdown(
     """
     **Rezultat final al comunicării științifice** *„Metode digitale în
-    cercetarea surselor din materiale arhivistice publice: cazul Mühimme Defterleri”*.
+    prelucrarea materialelor arhivistice otomane publicate: cazul Mühimme Defterleri”*.
 
     Aceasta nu este o demonstrație tehnică — este un instrument gândit
     pentru folosirea directă de către istoric: transformă informațiile din
@@ -1767,10 +1767,9 @@ st.divider()
 
 st.caption(
     """
-    Mühimme Defterleri — instrument de cercetare istorică, rezultat final al
-    comunicării științifice „Metode digitale în cercetarea surselor din
-    materiale arhivistice publice: cazul Mühimme Defterleri”. Analiza cantitativă și
-    vizualizarea completează, nu înlocuiesc, critica sursei și cercetarea
-    arhivistică.
+    Mühimme Defterleri — rezultat final al comunicării științifice „Metode
+    digitale în prelucrarea materialelor arhivistice otomane publicate: cazul
+    Mühimme Defterleri”. Analiza cantitativă și vizualizarea completează, nu
+    înlocuiesc, critica sursei și cercetarea arhivistică.
     """
 )
