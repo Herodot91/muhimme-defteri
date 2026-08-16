@@ -1,5 +1,7 @@
 # Mühimme Defterleri — Metode digitale în prelucrarea materialelor arhivistice otomane publicate
 
+**🔗 Aplicație live:** https://muhimme-defteri-46j5frpwtclekc2eyaxk2f.streamlit.app
+
 Rezultat final al comunicării științifice *„Metode digitale în prelucrarea
 materialelor arhivistice otomane publicate: cazul Mühimme Defterleri”*.
 
