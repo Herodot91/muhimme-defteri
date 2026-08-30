@@ -68,8 +68,10 @@ function setProgress(current, total, label) {
 async function extractPages(file, onProgress) {
   const buf = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  const total = pdf.numPages;
   const pages = [];
-  for (let i = 1; i <= pdf.numPages; i++) {
+  if (onProgress) onProgress(0, total);
+  for (let i = 1; i <= total; i++) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
     let text = '';
@@ -78,7 +80,7 @@ async function extractPages(file, onProgress) {
       text += item.hasEOL ? '\n' : ' ';
     }
     pages.push(text);
-    if (onProgress && (i % 10 === 0 || i === pdf.numPages)) onProgress(i, pdf.numPages);
+    if (onProgress && (i % 5 === 0 || i === total)) onProgress(i, total);
   }
   return pages;
 }
