@@ -50,7 +50,22 @@ function groupCount(arr, keyFn) {
 // PDF ingestion
 // ---------------------------------------------------------------------
 
-async function extractPages(file) {
+function setBanner(html, kind) {
+  const banner = document.getElementById('global-banner');
+  banner.style.display = 'block';
+  banner.className = kind || '';
+  banner.innerHTML = html;
+}
+
+function setProgress(current, total, label) {
+  const pct = total ? Math.round((current / total) * 100) : 0;
+  setBanner(
+    `<span class="spinner"></span>${label} (${current}/${total})
+     <div class="progress-track"><div class="progress-fill" style="width:${pct}%;"></div></div>`
+  );
+}
+
+async function extractPages(file, onProgress) {
   const buf = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
   const pages = [];
@@ -63,14 +78,20 @@ async function extractPages(file) {
       text += item.hasEOL ? '\n' : ' ';
     }
     pages.push(text);
+    if (onProgress && (i % 10 === 0 || i === pdf.numPages)) onProgress(i, pdf.numPages);
   }
   return pages;
 }
 
 async function processFile(file, statusEl) {
   statusEl.innerHTML = `<span class="spinner"></span>Se extrage textul din „${file.name}”...`;
-  const pages = await extractPages(file);
+  setBanner(`<span class="spinner"></span>Se încarcă „${file.name}”...`);
+  const pages = await extractPages(file, (done, total) => {
+    setProgress(done, total, `Se extrage textul din „${file.name}”`);
+    statusEl.innerHTML = `<span class="spinner"></span>Pagina ${done}/${total}...`;
+  });
   statusEl.innerHTML = `<span class="spinner"></span>Se analizează hükümurile...`;
+  setBanner(`<span class="spinner"></span>Se analizează hükümurile din „${file.name}” (${pages.length} pagini)...`);
   const period = detectPeriod(pages);
   let entries = parseEntries(pages, file.name);
   entries = attachYears(entries, period);
@@ -85,19 +106,42 @@ document.getElementById('pdf-input').addEventListener('change', async (e) => {
   const files = Array.from(e.target.files || []);
   if (!files.length) return;
   const statusEl = document.getElementById('upload-status');
-  let okCount = 0, entryCount = 0;
+  const input = document.getElementById('pdf-input');
+  input.disabled = true;
+  let okCount = 0, entryCount = 0, corpusCount = 0;
+  const errors = [];
   for (const file of files) {
     try {
       const vol = await processFile(file, statusEl);
       state.volumes.push(vol);
       okCount++;
       entryCount += vol.entries.length;
+      corpusCount += vol.entries.filter(e => e.regions.length || e.fortresses.length).length;
     } catch (err) {
-      statusEl.innerHTML = `<div class="status err">Eroare la „${file.name}”: ${err.message}</div>`;
       console.error(err);
+      errors.push(`„${file.name}”: ${err.message || err}`);
     }
   }
-  statusEl.innerHTML = `<div class="status ok">${okCount} volum(e) încărcate — ${entryCount} hükümuri identificate.</div>`;
+  input.disabled = false;
+  input.value = '';
+
+  if (errors.length) {
+    statusEl.innerHTML = `<div class="status err">Eroare la ${errors.length} fișier(e):<br>${errors.map(escapeHtml).join('<br>')}</div>`;
+    setBanner(`❌ Eroare la procesare:<br>${errors.map(escapeHtml).join('<br>')}`, 'err');
+  } else if (okCount > 0 && corpusCount === 0) {
+    statusEl.innerHTML = `<div class="status err">${okCount} volum(e) citite (${entryCount} hükümuri în total), dar niciunul nu menționează Eflak/Boğdan/Erdel sau cetățile urmărite.</div>`;
+    setBanner(
+      `⚠️ PDF-ul a fost citit cu succes (${entryCount} hükümuri identificate în total), dar <b>niciunul nu
+       menționează Eflak, Boğdan, Erdel</b> sau cetățile urmărite (Kili, Akkerman, Bender, Hotin, Silistre) —
+       de aceea filele de mai jos rămân pe corpusul demonstrativ. Verifică fila „📕 Volum PDF” → „Căutare
+       completă” pentru a răsfoi tot ce a fost extras din acest volum.`,
+      'err'
+    );
+  } else if (okCount > 0) {
+    statusEl.innerHTML = `<div class="status ok">${okCount} volum(e) încărcate — ${entryCount} hükümuri identificate (${corpusCount} despre Eflak/Boğdan/Erdel/cetăți).</div>`;
+    setBanner(`✅ ${okCount} volum(e) încărcate — ${corpusCount} hükümuri reale acum populează filele de mai jos (din ${entryCount} identificate în total). Vezi filele „🏠 Corpus”, „📄 Documente”, etc.`, 'ok');
+    setTimeout(() => { document.getElementById('global-banner').style.display = 'none'; }, 8000);
+  }
   renderAll();
 });
 
