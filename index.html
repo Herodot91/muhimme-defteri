@@ -3,321 +3,191 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Mühimme Defterleri — demonstrație statică</title>
+<title>Mühimme Defterleri — analiză digitală</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<script src="https://d3js.org/d3.v7.min.js"></script>
 <style>
   :root {
-    --bg: #f5ecd8;
-    --bg-alt: #efe2c4;
-    --ink: #2b2013;
-    --accent: #8b3a2f;
-    --accent-2: #4a5a3a;
-    --border: #d9c69a;
+    --bg: #f5ecd8; --bg-alt: #efe2c4; --ink: #2b2013;
+    --accent: #8b3a2f; --accent-2: #4a5a3a; --border: #d9c69a;
   }
   * { box-sizing: border-box; }
-  body {
-    font-family: Georgia, "Times New Roman", serif;
-    background: var(--bg);
-    color: var(--ink);
-    margin: 0;
-    padding: 0 16px 60px;
+  body { font-family: Georgia, "Times New Roman", serif; background: var(--bg); color: var(--ink); margin: 0; padding: 0 16px 60px; }
+  a { color: var(--accent); }
+  .layout { max-width: 1200px; margin: 0 auto; display: flex; gap: 24px; align-items: flex-start; }
+  aside {
+    width: 300px; flex: 0 0 300px; background: var(--bg-alt); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px; position: sticky; top: 16px; margin-top: 28px;
   }
-  header {
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 32px 0 16px;
-  }
-  h1 { font-size: 1.7rem; margin: 0 0 6px; }
-  .subtitle { color: var(--accent); font-weight: bold; margin: 0 0 16px; }
-  .intro {
-    background: var(--bg-alt);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 14px 18px;
-    font-size: 0.95rem;
-    line-height: 1.5;
-  }
+  aside h3 { margin: 0 0 8px; font-size: 1rem; }
+  aside .section { margin-bottom: 18px; }
+  aside input[type=file] { width: 100%; font-size: 0.85rem; }
+  aside .hint { font-size: 0.78rem; opacity: 0.75; margin-top: 6px; line-height: 1.4; }
+  main { flex: 1; min-width: 0; }
+  header { padding: 28px 0 12px; }
+  h1 { font-size: 1.6rem; margin: 0 0 6px; }
+  .subtitle { color: var(--accent); font-weight: bold; margin: 0 0 14px; }
+  .intro { background: var(--bg-alt); border: 1px solid var(--border); border-radius: 6px; padding: 14px 18px; font-size: 0.92rem; line-height: 1.5; }
   .intro b { color: var(--accent); }
-  main { max-width: 900px; margin: 0 auto; }
-  nav.tabs {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin: 22px 0 0;
-    border-bottom: 2px solid var(--border);
-  }
-  nav.tabs button {
-    font-family: inherit;
-    font-size: 0.95rem;
-    background: none;
-    border: 1px solid var(--border);
-    border-bottom: none;
-    border-radius: 6px 6px 0 0;
-    padding: 8px 16px;
-    cursor: pointer;
-    color: var(--ink);
-    opacity: 0.7;
-  }
-  nav.tabs button.active {
-    opacity: 1;
-    background: var(--bg-alt);
-    font-weight: bold;
-  }
-  .panel { display: none; padding: 20px 0; }
+  nav.tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 22px 0 0; border-bottom: 2px solid var(--border); }
+  nav.tabs button { font-family: inherit; font-size: 0.92rem; background: none; border: 1px solid var(--border); border-bottom: none; border-radius: 6px 6px 0 0; padding: 7px 14px; cursor: pointer; color: var(--ink); opacity: 0.7; }
+  nav.tabs button.active { opacity: 1; background: var(--bg-alt); font-weight: bold; }
+  .panel { display: none; padding: 18px 0; }
   .panel.active { display: block; }
-  .metrics { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 20px; }
-  .metric {
-    background: var(--bg-alt);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 12px 18px;
-    min-width: 140px;
-  }
-  .metric .value { font-size: 1.6rem; font-weight: bold; color: var(--accent); }
-  .metric .label { font-size: 0.85rem; opacity: 0.8; }
-  .charts { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
-  @media (max-width: 700px) { .charts { grid-template-columns: 1fr; } }
-  .chart-box {
-    background: var(--bg-alt);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 10px;
-  }
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    background: var(--bg-alt);
-    border: 1px solid var(--border);
-    font-size: 0.9rem;
-  }
-  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  .metrics { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+  .metric { background: var(--bg-alt); border: 1px solid var(--border); border-radius: 6px; padding: 10px 16px; min-width: 130px; }
+  .metric .value { font-size: 1.4rem; font-weight: bold; color: var(--accent); }
+  .metric .label { font-size: 0.8rem; opacity: 0.8; }
+  .charts { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; }
+  @media (max-width: 900px) { .layout { flex-direction: column; } aside { width: 100%; flex: none; position: static; } .charts { grid-template-columns: 1fr; } }
+  .chart-box { background: var(--bg-alt); border: 1px solid var(--border); border-radius: 6px; padding: 8px; }
+  table { width: 100%; border-collapse: collapse; background: var(--bg-alt); border: 1px solid var(--border); font-size: 0.88rem; }
+  th, td { text-align: left; padding: 7px 9px; border-bottom: 1px solid var(--border); vertical-align: top; }
   th { background: #e3d2a5; }
   tr:hover td { background: #f0e2c0; }
-  input[type=text] {
-    font-family: inherit;
-    padding: 8px 10px;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    width: 100%;
-    max-width: 340px;
-    margin-bottom: 12px;
-  }
-  .doc-detail {
-    background: var(--bg-alt);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 14px 18px;
-    margin-top: 14px;
-    display: none;
-  }
-  .doc-detail.active { display: block; }
+  input[type=text], select { font-family: inherit; padding: 7px 9px; border: 1px solid var(--border); border-radius: 4px; }
+  .filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .doc-detail { background: var(--bg-alt); border: 1px solid var(--border); border-radius: 6px; padding: 14px 18px; margin-top: 14px; }
   .doc-detail h3 { margin-top: 0; }
-  .rel { font-size: 1.05rem; margin-top: 10px; }
+  .rel { font-size: 1rem; margin-top: 8px; }
   .rel b { color: var(--accent); }
-  footer {
-    max-width: 900px;
-    margin: 40px auto 0;
-    padding-top: 16px;
-    border-top: 1px solid var(--border);
-    font-size: 0.85rem;
-    opacity: 0.75;
-  }
+  .fulltext { white-space: pre-wrap; font-family: "Courier New", monospace; font-size: 0.82rem; background: #fbf6e8; border: 1px solid var(--border); padding: 10px; border-radius: 4px; max-height: 260px; overflow-y: auto; }
+  details.entry-card { background: var(--bg-alt); border: 1px solid var(--border); border-radius: 6px; margin-bottom: 8px; padding: 6px 12px; }
+  details.entry-card summary { cursor: pointer; font-size: 0.9rem; }
+  .badge { display: inline-block; background: var(--accent); color: #fff; border-radius: 10px; padding: 1px 9px; font-size: 0.75rem; margin-left: 6px; }
+  .badge.alt { background: var(--accent-2); }
+  footer { max-width: 1200px; margin: 40px auto 0; padding-top: 16px; border-top: 1px solid var(--border); font-size: 0.85rem; opacity: 0.75; }
+  .status { font-size: 0.85rem; padding: 6px 0; }
+  .status.ok { color: var(--accent-2); }
+  .status.err { color: var(--accent); }
+  .vol-row { font-size: 0.85rem; padding: 4px 0; border-bottom: 1px dashed var(--border); }
+  #pdf-viewer-frame { width: 100%; height: 600px; border: 1px solid var(--border); border-radius: 6px; }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
 
-<header>
-  <h1>📜 Moldova, Țara Românească și Erdel în Mühimme Defterleri</h1>
-  <p class="subtitle">Metode digitale în prelucrarea materialelor arhivistice otomane publicate</p>
-  <div class="intro">
-    <p><b>Demonstrație statică</b> a interfeței aplicației, rezultat al comunicării
-    științifice <i>„Metode digitale în prelucrarea materialelor arhivistice otomane
-    publicate: cazul Mühimme Defterleri”</i>.</p>
-    <p>Această pagină rulează integral în browser, fără niciun server — de aceea
-    arată doar <b>corpusul demonstrativ fictiv</b> (cele 12 înregistrări marcate
-    „Exemplu demonstrativ” de mai jos), pentru a ilustra mecanismele aplicației
-    (filtre, cronologie, teme, documente). Extragerea reală din PDF-uri (Eflak /
-    Boğdan / Erdel, hükümuri, rețele, hartă istorică) necesită un backend Python și
-    nu poate rula static pe GitHub Pages.</p>
-  </div>
-</header>
-
-<main>
-  <nav class="tabs">
-    <button data-tab="corpus" class="active">🏠 Corpus</button>
-    <button data-tab="cronologie">⏳ Cronologie</button>
-    <button data-tab="teme">🏷️ Teme</button>
-    <button data-tab="documente">📄 Documente</button>
-  </nav>
-
-  <section id="corpus" class="panel active">
-    <div class="metrics">
-      <div class="metric"><div class="value" id="m-documente">–</div><div class="label">Documente</div></div>
-      <div class="metric"><div class="value" id="m-registre">–</div><div class="label">Registre</div></div>
-      <div class="metric"><div class="value" id="m-localitati">–</div><div class="label">Localități</div></div>
-      <div class="metric"><div class="value" id="m-actori">–</div><div class="label">Actori principali</div></div>
+<div class="layout">
+  <aside>
+    <div class="section">
+      <h3>📕 Volume sursă (PDF)</h3>
+      <input type="file" id="pdf-input" accept="application/pdf" multiple>
+      <div id="upload-status"></div>
+      <div class="hint">Se procesează integral în browser (PDF.js) — niciun fișier nu părăsește acest calculator.</div>
     </div>
-    <div class="charts">
-      <div class="chart-box" id="chart-yearly"></div>
-      <div class="chart-box" id="chart-theme-pie"></div>
+    <div class="section" id="volumes-list-box" style="display:none;">
+      <h3>📚 Volume încărcate</h3>
+      <div id="volumes-list"></div>
     </div>
-  </section>
+    <div class="section">
+      <div class="hint">⚠️ Traducerea AI (română) nu este disponibilă în această versiune statică — necesită un server, iar browserul blochează apeluri directe către API-ul Anthropic (CORS). Versiunea completă cu traducere rulează separat, pe server Python.</div>
+    </div>
+  </aside>
 
-  <section id="cronologie" class="panel">
-    <div class="chart-box" id="chart-cronologie"></div>
-  </section>
+  <main>
+    <header>
+      <h1>📜 Moldova, Țara Românească și Erdel în Mühimme Defterleri</h1>
+      <p class="subtitle">Metode digitale în prelucrarea materialelor arhivistice otomane publicate</p>
+      <div class="intro">
+        <p><b>Rezultat al comunicării științifice</b> <i>„Metode digitale în prelucrarea
+        materialelor arhivistice otomane publicate: cazul Mühimme Defterleri”</i>.
+        Rulează integral static, în browser — încarcă un volum Mühimme Defterleri (PDF)
+        din bara laterală și toate filele de mai jos comută automat la datele reale
+        extrase din el.</p>
+        <p id="scope-note">⚠️ Fără niciun volum încărcat, tabelele de mai jos arată un corpus
+        demonstrativ fictiv (12 înregistrări „Exemplu demonstrativ”), doar pentru
+        ilustrare.</p>
+      </div>
+    </header>
 
-  <section id="teme" class="panel">
-    <div class="chart-box" id="chart-teme"></div>
-    <table id="table-teme" style="margin-top:16px;"></table>
-  </section>
+    <nav class="tabs">
+      <button data-tab="corpus" class="active">🏠 Corpus</button>
+      <button data-tab="cronologie">⏳ Cronologie</button>
+      <button data-tab="teme">🏷️ Teme</button>
+      <button data-tab="harta">🗺️ Hartă</button>
+      <button data-tab="retele">🕸️ Rețele</button>
+      <button data-tab="comparatie">⚖️ Comparație</button>
+      <button data-tab="documente">📄 Documente</button>
+      <button data-tab="volum">📕 Volum PDF</button>
+    </nav>
 
-  <section id="documente" class="panel">
-    <input type="text" id="doc-search" placeholder="🔍 Caută în rezumate...">
-    <table id="table-documente"></table>
-    <div class="doc-detail" id="doc-detail"></div>
-  </section>
-</main>
+    <section id="corpus" class="panel active">
+      <div class="metrics">
+        <div class="metric"><div class="value" id="m-documente">–</div><div class="label">Documente</div></div>
+        <div class="metric"><div class="value" id="m-registre">–</div><div class="label">Registre / Volume</div></div>
+        <div class="metric"><div class="value" id="m-localitati">–</div><div class="label">Regiuni distincte</div></div>
+        <div class="metric"><div class="value" id="m-actori">–</div><div class="label">Actori / destinatari</div></div>
+      </div>
+      <div class="charts">
+        <div class="chart-box" id="chart-yearly"></div>
+        <div class="chart-box" id="chart-theme-pie"></div>
+      </div>
+      <div id="highlights" style="margin-top:16px;"></div>
+    </section>
+
+    <section id="cronologie" class="panel">
+      <div class="chart-box" id="chart-cronologie"></div>
+    </section>
+
+    <section id="teme" class="panel">
+      <div class="chart-box" id="chart-teme"></div>
+      <table id="table-teme" style="margin-top:16px;"></table>
+    </section>
+
+    <section id="harta" class="panel">
+      <div id="map-note" class="hint" style="margin-bottom:10px;"></div>
+      <div id="map-container"></div>
+    </section>
+
+    <section id="retele" class="panel">
+      <p class="hint">Dă clic pe un nod pentru a vedea hükümurile asociate.</p>
+      <div class="chart-box" id="chart-network-recipients" style="height:520px;"></div>
+      <div id="network-detail-1"></div>
+      <div class="chart-box" id="chart-network-regions" style="height:520px; margin-top:16px;"></div>
+      <div id="network-detail-2"></div>
+    </section>
+
+    <section id="comparatie" class="panel">
+      <div class="metrics" id="comparatie-metrics"></div>
+      <div class="chart-box" id="chart-comparatie"></div>
+      <div id="comparatie-recipients" style="margin-top:16px;"></div>
+    </section>
+
+    <section id="documente" class="panel">
+      <div class="filters">
+        <select id="doc-filter-region"><option value="">Toate regiunile</option></select>
+        <select id="doc-filter-theme"><option value="">Toate temele</option></select>
+        <input type="text" id="doc-search" placeholder="🔍 Caută în rezumate și text...">
+      </div>
+      <table id="table-documente"></table>
+      <div id="doc-detail-box"></div>
+    </section>
+
+    <section id="volum" class="panel">
+      <div id="volum-empty">Încarcă un volum PDF din bara laterală pentru vizualizare și căutare brută.</div>
+      <div id="volum-content" style="display:none;">
+        <select id="volum-select"></select>
+        <iframe id="pdf-viewer-frame" style="margin-top:10px;"></iframe>
+        <h3 style="margin-top:20px;">🔍 Căutare completă (toate hükümurile, inclusiv cele fără Eflak/Boğdan/Erdel)</h3>
+        <input type="text" id="volum-search" placeholder="Caută un termen...">
+        <div id="volum-search-results"></div>
+      </div>
+    </section>
+  </main>
+</div>
 
 <footer>
-  Mühimme Defterleri — demonstrație statică, rezultat al comunicării științifice
-  „Metode digitale în prelucrarea materialelor arhivistice otomane publicate: cazul
-  Mühimme Defterleri”. Datele de mai sus sunt fictive (demonstrative); analiza
+  Mühimme Defterleri — rezultat al comunicării științifice „Metode digitale în
+  prelucrarea materialelor arhivistice otomane publicate: cazul Mühimme
+  Defterleri”. Extragerea automată (regiuni, teme, cetăți) este euristică, pe
+  bază de cuvinte-cheie — nu adnotare filologică validată manual. Analiza
   cantitativă și vizualizarea completează, nu înlocuiesc, critica sursei și
   cercetarea arhivistică.
 </footer>
 
-<script>
-const DATA = [
-  {id:"MD-001", registru:"MD Demo 1", an:1552, principat:"Moldova", localitate:"Suceava", tema:"Diplomație", actor_principal:"Domnul Moldovei", actor_secundar:"Poarta Otomană", tip_decizie:"Ordin", rezumat:"Exemplu demonstrativ privind comunicarea dintre administrația centrală otomană și Moldova."},
-  {id:"MD-002", registru:"MD Demo 1", an:1553, principat:"Țara Românească", localitate:"Târgoviște", tema:"Fiscalitate", actor_principal:"Domnul Țării Românești", actor_secundar:"Poarta Otomană", tip_decizie:"Dispoziție", rezumat:"Exemplu demonstrativ privind o problemă fiscală."},
-  {id:"MD-003", registru:"MD Demo 1", an:1554, principat:"Moldova", localitate:"Iași", tema:"Securitate", actor_principal:"Domnul Moldovei", actor_secundar:"Sangeacul Silistra", tip_decizie:"Avertizare", rezumat:"Exemplu demonstrativ referitor la securitate și circulație regională."},
-  {id:"MD-004", registru:"MD Demo 2", an:1555, principat:"Țara Românească", localitate:"București", tema:"Administrație", actor_principal:"Domnul Țării Românești", actor_secundar:"Beylerbey de Rumelia", tip_decizie:"Ordin", rezumat:"Exemplu demonstrativ privind coordonarea administrativă."},
-  {id:"MD-005", registru:"MD Demo 2", an:1556, principat:"Moldova", localitate:"Chilia", tema:"Comerț", actor_principal:"Autorități locale", actor_secundar:"Negustori", tip_decizie:"Reglementare", rezumat:"Exemplu demonstrativ privind activitatea comercială în regiunea Dunării de Jos."},
-  {id:"MD-006", registru:"MD Demo 2", an:1557, principat:"Țara Românească", localitate:"Giurgiu", tema:"Securitate", actor_principal:"Sangeacul Giurgiu", actor_secundar:"Domnul Țării Românești", tip_decizie:"Ordin", rezumat:"Exemplu demonstrativ privind securitatea zonei dunărene."},
-  {id:"MD-007", registru:"MD Demo 3", an:1558, principat:"Moldova", localitate:"Cetatea Albă", tema:"Militar", actor_principal:"Sangeacul Akkerman", actor_secundar:"Poarta Otomană", tip_decizie:"Mobilizare", rezumat:"Exemplu demonstrativ privind măsuri cu caracter militar."},
-  {id:"MD-008", registru:"MD Demo 3", an:1559, principat:"Țara Românească", localitate:"Târgoviște", tema:"Diplomație", actor_principal:"Domnul Țării Românești", actor_secundar:"Poarta Otomană", tip_decizie:"Instrucțiune", rezumat:"Exemplu demonstrativ privind relațiile politico-diplomatice."},
-  {id:"MD-009", registru:"MD Demo 3", an:1560, principat:"Moldova", localitate:"Iași", tema:"Fiscalitate", actor_principal:"Domnul Moldovei", actor_secundar:"Poarta Otomană", tip_decizie:"Solicitare", rezumat:"Exemplu demonstrativ privind obligațiile fiscale."},
-  {id:"MD-010", registru:"MD Demo 3", an:1561, principat:"Țara Românească", localitate:"București", tema:"Comerț", actor_principal:"Negustori", actor_secundar:"Domnul Țării Românești", tip_decizie:"Reglementare", rezumat:"Exemplu demonstrativ privind reglementarea unor activități comerciale."},
-  {id:"MD-011", registru:"MD Demo 4", an:1562, principat:"Moldova", localitate:"Suceava", tema:"Administrație", actor_principal:"Domnul Moldovei", actor_secundar:"Autorități locale", tip_decizie:"Instrucțiune", rezumat:"Exemplu demonstrativ privind administrația teritorială."},
-  {id:"MD-012", registru:"MD Demo 4", an:1563, principat:"Țara Românească", localitate:"Giurgiu", tema:"Militar", actor_principal:"Sangeacul Giurgiu", actor_secundar:"Poarta Otomană", tip_decizie:"Ordin", rezumat:"Exemplu demonstrativ privind probleme militare în regiunea Dunării."}
-];
-
-const PALETTE = { "Moldova": "#8b3a2f", "Țara Românească": "#4a5a3a" };
-
-function groupCount(arr, keys) {
-  const m = {};
-  arr.forEach(r => {
-    const k = keys.map(k => r[k]).join("|||");
-    m[k] = (m[k] || 0) + 1;
-  });
-  return m;
-}
-
-function renderCorpus() {
-  document.getElementById("m-documente").textContent = DATA.length;
-  document.getElementById("m-registre").textContent = new Set(DATA.map(r => r.registru)).size;
-  document.getElementById("m-localitati").textContent = new Set(DATA.map(r => r.localitate)).size;
-  document.getElementById("m-actori").textContent = new Set(DATA.map(r => r.actor_principal)).size;
-
-  const byYearPrincipat = groupCount(DATA, ["an", "principat"]);
-  const principates = [...new Set(DATA.map(r => r.principat))];
-  const years = [...new Set(DATA.map(r => r.an))].sort();
-  const traces = principates.map(p => ({
-    x: years,
-    y: years.map(y => byYearPrincipat[y + "|||" + p] || 0),
-    name: p,
-    type: "bar",
-    marker: { color: PALETTE[p] }
-  }));
-  Plotly.newPlot("chart-yearly", traces, {
-    barmode: "group", title: "Documente identificate pe ani",
-    paper_bgcolor: "transparent", plot_bgcolor: "transparent",
-    margin: { t: 40 }
-  }, { responsive: true, displayModeBar: false });
-
-  const byTheme = groupCount(DATA, ["tema"]);
-  Plotly.newPlot("chart-theme-pie", [{
-    labels: Object.keys(byTheme), values: Object.values(byTheme), type: "pie"
-  }], { title: "Structura tematică", paper_bgcolor: "transparent", margin: { t: 40 } },
-  { responsive: true, displayModeBar: false });
-}
-
-function renderCronologie() {
-  const byYearTheme = groupCount(DATA, ["an", "tema"]);
-  const themes = [...new Set(DATA.map(r => r.tema))];
-  const years = [...new Set(DATA.map(r => r.an))].sort();
-  const traces = themes.map(t => ({
-    x: years, y: years.map(y => byYearTheme[y + "|||" + t] || 0),
-    name: t, mode: "lines+markers"
-  }));
-  Plotly.newPlot("chart-cronologie", traces, {
-    title: "Evoluția temelor în timp",
-    paper_bgcolor: "transparent", plot_bgcolor: "transparent", margin: { t: 40 }
-  }, { responsive: true, displayModeBar: false });
-}
-
-function renderTeme() {
-  const byThemePrincipat = groupCount(DATA, ["tema", "principat"]);
-  const themes = [...new Set(DATA.map(r => r.tema))];
-  const principates = [...new Set(DATA.map(r => r.principat))];
-  const traces = principates.map(p => ({
-    x: themes, y: themes.map(t => byThemePrincipat[t + "|||" + p] || 0),
-    name: p, type: "bar", marker: { color: PALETTE[p] }
-  }));
-  Plotly.newPlot("chart-teme", traces, {
-    barmode: "group", title: "Moldova și Țara Românească – comparație tematică",
-    paper_bgcolor: "transparent", plot_bgcolor: "transparent", margin: { t: 40 }
-  }, { responsive: true, displayModeBar: false });
-
-  const ranking = groupCount(DATA, ["tema"]);
-  const rows = Object.entries(ranking).sort((a, b) => b[1] - a[1]);
-  const table = document.getElementById("table-teme");
-  table.innerHTML = "<tr><th>Temă</th><th>Număr documente</th></tr>" +
-    rows.map(([t, c]) => `<tr><td>${t}</td><td>${c}</td></tr>`).join("");
-}
-
-function renderDocumente(filter) {
-  const q = (filter || "").toLowerCase();
-  const rows = DATA.filter(r => r.rezumat.toLowerCase().includes(q));
-  const table = document.getElementById("table-documente");
-  table.innerHTML = "<tr><th>ID</th><th>An</th><th>Teritoriu</th><th>Localitate</th><th>Temă</th><th>Rezumat</th></tr>" +
-    rows.map(r => `<tr data-id="${r.id}" style="cursor:pointer"><td>${r.id}</td><td>${r.an}</td><td>${r.principat}</td><td>${r.localitate}</td><td>${r.tema}</td><td>${r.rezumat}</td></tr>`).join("");
-  table.querySelectorAll("tr[data-id]").forEach(tr => {
-    tr.addEventListener("click", () => showDoc(tr.dataset.id));
-  });
-}
-
-function showDoc(id) {
-  const doc = DATA.find(r => r.id === id);
-  const box = document.getElementById("doc-detail");
-  box.innerHTML = `
-    <h3>Fișa documentului — ${doc.id}</h3>
-    <p><b>Registru:</b> ${doc.registru} &nbsp; <b>An:</b> ${doc.an} &nbsp;
-       <b>Teritoriu:</b> ${doc.principat} &nbsp; <b>Localitate:</b> ${doc.localitate} &nbsp;
-       <b>Temă:</b> ${doc.tema}</p>
-    <p><b>Rezumat:</b> ${doc.rezumat}</p>
-    <p class="rel"><b>${doc.actor_principal}</b> → <b>${doc.tip_decizie}</b> → <b>${doc.actor_secundar}</b></p>
-  `;
-  box.classList.add("active");
-}
-
-document.querySelectorAll("nav.tabs button").forEach(btn => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll("nav.tabs button").forEach(b => b.classList.remove("active"));
-    document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
-    btn.classList.add("active");
-    document.getElementById(btn.dataset.tab).classList.add("active");
-  });
-});
-
-document.getElementById("doc-search").addEventListener("input", e => renderDocumente(e.target.value));
-
-renderCorpus();
-renderCronologie();
-renderTeme();
-renderDocumente("");
-</script>
-
+<script src="engine.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
