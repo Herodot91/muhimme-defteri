@@ -1,5 +1,5 @@
 // Mühimme Defterleri — client-side app logic (PDF.js ingestion + rendering).
-pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+pdfjsLib.GlobalWorkerOptions.workerSrc = "vendor/pdf.worker.min.js";
 
 const PALETTE = { "Moldova": "#8b3a2f", "Țara Românească": "#4a5a3a" };
 
@@ -65,15 +65,30 @@ function setProgress(current, total, label) {
   );
 }
 
+function withTimeout(promise, ms, message) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 async function extractPages(file, onProgress) {
   const buf = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  const pdf = await withTimeout(
+    pdfjsLib.getDocument({ data: buf }).promise,
+    30000,
+    'Nu s-a putut inițializa cititorul de PDF în 30 de secunde — posibil ca un ' +
+    'ad-blocker sau firewall să blocheze fișierul vendor/pdf.worker.min.js, sau ' +
+    'PDF-ul e corupt/protejat cu parolă. Încearcă să dezactivezi temporar orice ' +
+    'extensie de blocare a reclamelor și reîncarcă pagina.'
+  );
   const total = pdf.numPages;
   const pages = [];
   if (onProgress) onProgress(0, total);
   for (let i = 1; i <= total; i++) {
-    const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
+    const page = await withTimeout(pdf.getPage(i), 20000, `Extragerea paginii ${i}/${total} a durat prea mult (>20s) și a fost oprită.`);
+    const content = await withTimeout(page.getTextContent(), 20000, `Extragerea textului paginii ${i}/${total} a durat prea mult (>20s) și a fost oprită.`);
     let text = '';
     for (const item of content.items) {
       text += item.str;
