@@ -23,10 +23,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Prepare Pages folder (only index.html, not the app source)
+      - name: Prepare Pages folder (static site files only)
         run: |
           mkdir -p _site
-          cp index.html _site/index.html
+          cp index.html app.js engine.js _site/
+          cp -r vendor _site/vendor
+          touch _site/.nojekyll
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
