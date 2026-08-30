@@ -82,7 +82,13 @@
       <div id="volumes-list"></div>
     </div>
     <div class="section">
-      <div class="hint">⚠️ Traducerea AI (română) nu este disponibilă în această versiune statică — necesită un server, iar browserul blochează apeluri directe către API-ul Anthropic (CORS). Versiunea completă cu traducere rulează separat, pe server Python.</div>
+      <h3>🔤 Traducere AI (opțional)</h3>
+      <input type="text" id="anthropic-key" placeholder="Cheie API Anthropic (sk-ant-...)" style="width:100%;">
+      <div class="hint">⚠️ Cheia este folosită direct din browser (apel către api.anthropic.com cu antetul oficial
+      „anthropic-dangerous-direct-browser-access”, susținut de Anthropic pentru exact acest scenariu). Nu este
+      salvată nicăieri, dar <b>este vizibilă în traficul de rețea al acestei pagini</b> cât timp o folosești —
+      nu o introduce pe un calculator public/partajat.</div>
+    </div>
     </div>
   </aside>
 
