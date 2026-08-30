@@ -21,42 +21,19 @@ const DEMO_DATA = [
 const state = { volumes: [] };
 
 // ---------------------------------------------------------------------
-// AI translation (direct browser call to Anthropic's API).
-// Uses the "anthropic-dangerous-direct-browser-access" header, Anthropic's
-// own documented opt-in for calling their API straight from a webpage
-// (not a CORS workaround). The API key lives only in the browser's memory
-// for this session and is visible in this page's own network traffic
-// while a translation request is in flight.
+// AI translation via Puter.js (puter.ai.chat) — keyless from our side.
+// Puter's "User-Pays" model means the visiting user signs into their own
+// free Puter account (a one-time popup on first use); translations then
+// run under their account, with nothing for us to store or leak.
 // ---------------------------------------------------------------------
 
-async function translateToRomanian(text, apiKey) {
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-5',
-      max_tokens: 1500,
-      messages: [{
-        role: 'user',
-        content: 'Tradu în limba română textul otoman de mai jos, dintr-un hüküm ' +
-          '(ordin imperial) din Mühimme Defterleri. Este otomană chancery, ' +
-          'transliterată. Redă o traducere aproximativă, naturală, fără ' +
-          'comentarii sau explicații suplimentare — doar traducerea.\n\n' + text,
-      }],
-    }),
-  });
-  if (!resp.ok) {
-    let detail = '';
-    try { detail = (await resp.json()).error?.message || ''; } catch (e) {}
-    throw new Error(`${resp.status} ${resp.statusText}${detail ? ' — ' + detail : ''}`);
-  }
-  const data = await resp.json();
-  return data.content[0].text;
+async function translateToRomanian(text) {
+  const prompt = 'Tradu în limba română textul otoman de mai jos, dintr-un hüküm ' +
+    '(ordin imperial) din Mühimme Defterleri. Este otomană chancery, ' +
+    'transliterată. Redă o traducere aproximativă, naturală, fără ' +
+    'comentarii sau explicații suplimentare — doar traducerea.\n\n' + text;
+  const response = await puter.ai.chat(prompt, { model: 'claude-sonnet-5' });
+  return response.message.content;
 }
 
 function allEntries() { return state.volumes.flatMap(v => v.entries); }
@@ -624,19 +601,14 @@ function renderDocumente() {
           <div id="translate-result" style="margin-top:8px;"></div>
         </div>`;
         document.getElementById('translate-btn').addEventListener('click', async () => {
-          const apiKey = document.getElementById('anthropic-key').value.trim();
           const resultEl = document.getElementById('translate-result');
-          if (!apiKey) {
-            resultEl.innerHTML = '<p class="hint">Adaugă o cheie API Anthropic în bara laterală pentru a activa traducerea.</p>';
-            return;
-          }
-          resultEl.innerHTML = '<span class="spinner"></span>Se traduce...';
+          resultEl.innerHTML = '<span class="spinner"></span>Se traduce (poate apărea o fereastră de autentificare Puter, la prima folosire)...';
           try {
-            const translation = await translateToRomanian(doc.fullText.slice(0, 3000), apiKey);
+            const translation = await translateToRomanian(doc.fullText.slice(0, 3000));
             resultEl.innerHTML = `<p>${escapeHtml(translation).replace(/\n/g, '<br>')}</p>
               <p class="hint">Traducere automată AI, aproximativă — necesită verificare filologică.</p>`;
           } catch (err) {
-            resultEl.innerHTML = `<p class="status err">Eroare la traducere: ${escapeHtml(err.message)}</p>`;
+            resultEl.innerHTML = `<p class="status err">Eroare la traducere: ${escapeHtml(err.message || String(err))}</p>`;
           }
         });
       });

@@ -7,6 +7,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://js.puter.com/v2/"></script>
 <style>
   :root {
     --bg: #f5ecd8; --bg-alt: #efe2c4; --ink: #2b2013;
@@ -82,12 +83,10 @@
       <div id="volumes-list"></div>
     </div>
     <div class="section">
-      <h3>🔤 Traducere AI (opțional)</h3>
-      <input type="text" id="anthropic-key" placeholder="Cheie API Anthropic (sk-ant-...)" style="width:100%;">
-      <div class="hint">⚠️ Cheia este folosită direct din browser (apel către api.anthropic.com cu antetul oficial
-      „anthropic-dangerous-direct-browser-access”, susținut de Anthropic pentru exact acest scenariu). Nu este
-      salvată nicăieri, dar <b>este vizibilă în traficul de rețea al acestei pagini</b> cât timp o folosești —
-      nu o introduce pe un calculator public/partajat.</div>
+      <h3>🔤 Traducere AI</h3>
+      <div class="hint">Traducerea folosește <a href="https://developer.puter.com" target="_blank" rel="noopener">Puter.js</a>
+      — nu necesită nicio cheie API din partea ta. La prima traducere, se deschide o fereastră de autentificare
+      Puter (cont gratuit, o singură dată); după aceea, traducerile funcționează direct, fără costuri pentru tine.</div>
     </div>
     </div>
   </aside>
@@ -191,6 +190,8 @@
   bază de cuvinte-cheie — nu adnotare filologică validată manual. Analiza
   cantitativă și vizualizarea completează, nu înlocuiesc, critica sursei și
   cercetarea arhivistică.
+  <br><br>
+  Traducerea AI este posibilă prin <a href="https://developer.puter.com" target="_blank" rel="noopener">Powered by Puter</a>.
 </footer>
 
 <script src="engine.js"></script>
