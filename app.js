@@ -1,5 +1,13 @@
 // Mühimme Defterleri — client-side app logic (PDF.js ingestion + rendering).
-pdfjsLib.GlobalWorkerOptions.workerSrc = "vendor/pdf.worker.min.js";
+// Guarded: if vendor/pdf.min.js fails to load for any reason (flaky network,
+// browser extension interference), the rest of the app — demo mode, tab
+// navigation, everything except actual PDF upload — must still work rather
+// than the whole script dying on this one line.
+if (typeof pdfjsLib !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "vendor/pdf.worker.min.js";
+} else {
+  console.error('pdfjsLib failed to load — PDF upload will be unavailable, but the rest of the app should still work.');
+}
 
 const PALETTE = { "Moldova": "#8b3a2f", "Țara Românească": "#4a5a3a" };
 
@@ -124,6 +132,12 @@ document.getElementById('pdf-input').addEventListener('change', async (e) => {
   if (!files.length) return;
   const statusEl = document.getElementById('upload-status');
   const input = document.getElementById('pdf-input');
+  if (typeof pdfjsLib === 'undefined') {
+    statusEl.innerHTML = '<div class="status err">Biblioteca PDF.js nu s-a putut încărca (posibil o problemă de rețea) — reîncarcă pagina și încearcă din nou.</div>';
+    setBanner('❌ Biblioteca PDF.js nu s-a putut încărca. Reîncarcă pagina (F5) și încearcă din nou.', 'err');
+    input.value = '';
+    return;
+  }
   input.disabled = true;
   let okCount = 0, entryCount = 0, corpusCount = 0;
   const errors = [];
@@ -237,7 +251,7 @@ function renderCorpus() {
       }));
       Plotly.newPlot('chart-yearly', traces, {
         barmode: 'group', title: 'Hükümuri identificate pe ani (an aproximativ)',
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', margin: { t: 40 }
+        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 400, margin: { t: 40 }
       }, { responsive: true, displayModeBar: false });
     } else {
       document.getElementById('chart-yearly').innerHTML = '<p style="padding:20px;">Anul nu a putut fi determinat.</p>';
@@ -247,7 +261,7 @@ function renderCorpus() {
     entries.forEach(e => (e.themes.length ? e.themes : ['Neclasificat']).forEach(t => themeRows.push(t)));
     const byTheme = groupCount(themeRows, t => t);
     Plotly.newPlot('chart-theme-pie', [{ labels: Object.keys(byTheme), values: Object.values(byTheme), type: 'pie' }],
-      { title: 'Structura tematică', paper_bgcolor: 'transparent', margin: { t: 40 } },
+      { title: 'Structura tematică', paper_bgcolor: 'transparent', height: 400, margin: { t: 40 } },
       { responsive: true, displayModeBar: false });
 
     const regionNames = Object.keys(REGION_TERMS);
@@ -279,12 +293,12 @@ function renderCorpus() {
     }));
     Plotly.newPlot('chart-yearly', traces, {
       barmode: 'group', title: 'Documente identificate pe ani (demonstrativ)',
-      paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', margin: { t: 40 }
+      paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 400, margin: { t: 40 }
     }, { responsive: true, displayModeBar: false });
 
     const byTheme = groupCount(DEMO_DATA, r => r.tema);
     Plotly.newPlot('chart-theme-pie', [{ labels: Object.keys(byTheme), values: Object.values(byTheme), type: 'pie' }],
-      { title: 'Structura tematică (demonstrativ)', paper_bgcolor: 'transparent', margin: { t: 40 } },
+      { title: 'Structura tematică (demonstrativ)', paper_bgcolor: 'transparent', height: 400, margin: { t: 40 } },
       { responsive: true, displayModeBar: false });
 
     document.getElementById('highlights').innerHTML = '';
@@ -314,7 +328,7 @@ function renderCronologie() {
     }));
     Plotly.newPlot('chart-cronologie', traces, {
       title: 'Evoluția temelor în timp (an aproximativ)',
-      paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', margin: { t: 40 }
+      paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 400, margin: { t: 40 }
     }, { responsive: true, displayModeBar: false });
   } else {
     const byYearTheme = groupCount(DEMO_DATA, r => r.an + '|||' + r.tema);
@@ -325,7 +339,7 @@ function renderCronologie() {
     }));
     Plotly.newPlot('chart-cronologie', traces, {
       title: 'Evoluția temelor în timp (demonstrativ)',
-      paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', margin: { t: 40 }
+      paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 400, margin: { t: 40 }
     }, { responsive: true, displayModeBar: false });
   }
 }
@@ -351,7 +365,7 @@ function renderTeme() {
     }));
     Plotly.newPlot('chart-teme', traces, {
       barmode: 'group', title: 'Eflak / Boğdan / Erdel – comparație tematică',
-      paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', margin: { t: 40 }
+      paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 400, margin: { t: 40 }
     }, { responsive: true, displayModeBar: false });
 
     const themeRows = entries.flatMap(e => e.themes.length ? e.themes : ['Neclasificat']);
@@ -367,7 +381,7 @@ function renderTeme() {
     }));
     Plotly.newPlot('chart-teme', traces, {
       barmode: 'group', title: 'Moldova și Țara Românească – comparație tematică (demonstrativ)',
-      paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', margin: { t: 40 }
+      paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 400, margin: { t: 40 }
     }, { responsive: true, displayModeBar: false });
 
     const ranking = Object.entries(groupCount(DEMO_DATA, r => r.tema)).sort((a, b) => b[1] - a[1]);
@@ -497,7 +511,7 @@ function renderNetworkChart(divId, nodeWeights, edgeWeights, title, onNodeClick)
     title, showlegend: false, hovermode: 'closest',
     xaxis: { showgrid: false, zeroline: false, showticklabels: false },
     yaxis: { showgrid: false, zeroline: false, showticklabels: false },
-    paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', margin: { t: 40 }
+    paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 400, margin: { t: 40 }
   }, { responsive: true, displayModeBar: false });
 
   const el = document.getElementById(divId);
@@ -602,7 +616,7 @@ function renderComparatie() {
     }));
     Plotly.newPlot('chart-comparatie', traces, {
       barmode: 'group', title: 'Profil tematic: Eflak vs. Boğdan vs. Erdel',
-      paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', margin: { t: 40 }
+      paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 400, margin: { t: 40 }
     }, { responsive: true, displayModeBar: false });
   } else {
     document.getElementById('chart-comparatie').innerHTML = '<p style="padding:20px;">Nicio temă clasificată încă.</p>';
