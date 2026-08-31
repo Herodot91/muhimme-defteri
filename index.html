@@ -53,7 +53,31 @@
   .doc-detail h3 { margin-top: 0; }
   .rel { font-size: 1rem; margin-top: 8px; }
   .rel b { color: var(--accent); }
-  .fulltext { white-space: pre-wrap; font-family: "Courier New", monospace; font-size: 0.82rem; background: #fbf6e8; border: 1px solid var(--border); padding: 10px; border-radius: 4px; max-height: 260px; overflow-y: auto; }
+  .fulltext {
+    position: relative;
+    white-space: pre-wrap;
+    font-family: "Courier New", monospace;
+    font-size: 0.85rem;
+    color: #2b1f0f;
+    padding: 34px 38px;
+    margin: 14px 0;
+    max-height: 340px;
+    overflow-y: auto;
+    line-height: 1.7;
+    background:
+      radial-gradient(ellipse at center, #f2e6c8 0%, #ecdcae 45%, #d3ae76 68%, #8a5a30 85%, #2b1a0d 100%);
+    clip-path: polygon(
+      2% 8%, 7% 3%, 12% 7%, 18% 2%, 24% 6%, 30% 1%, 37% 5%, 44% 2%, 51% 6%,
+      58% 1%, 65% 5%, 72% 2%, 79% 6%, 86% 2%, 93% 5%, 98% 1%, 99% 9%,
+      96% 17%, 100% 25%, 96% 33%, 99% 41%, 95% 49%, 98% 57%, 94% 65%,
+      97% 73%, 93% 81%, 96% 89%, 91% 96%, 98% 99%,
+      85% 96%, 78% 99%, 71% 95%, 64% 99%, 57% 95%, 50% 99%, 43% 95%,
+      36% 99%, 29% 95%, 22% 99%, 15% 95%, 8% 99%, 2% 95%,
+      1% 88%, 5% 80%, 1% 72%, 4% 64%, 1% 56%, 5% 48%, 1% 40%,
+      4% 32%, 1% 24%, 5% 16%, 0% 10%
+    );
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
   details.entry-card { background: var(--bg-alt); border: 1px solid var(--border); border-radius: 6px; margin-bottom: 8px; padding: 6px 12px; }
   details.entry-card summary { cursor: pointer; font-size: 0.9rem; }
   .badge { display: inline-block; background: var(--accent); color: #fff; border-radius: 10px; padding: 1px 9px; font-size: 0.75rem; margin-left: 6px; }
