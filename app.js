@@ -54,6 +54,20 @@ function groupCount(arr, keyFn) {
   return m;
 }
 
+// Document/huku0m counts are always whole numbers, but Plotly's default
+// auto-ticking subdivides a small range (e.g. max=1) into fractions like
+// 0.2/0.4/0.6/0.8/1 — nonsensical for a count. Force integer-only ticks,
+// spaced so there are roughly 5-6 gridlines regardless of the max value.
+function integerYAxis(traces) {
+  let max = 0;
+  traces.forEach(t => (t.y || []).forEach(v => { if (v > max) max = v; }));
+  const dtick = Math.max(1, Math.ceil((max || 1) / 6));
+  // tickmode must be 'linear' or Plotly silently ignores dtick and falls
+  // back to its own auto-ticking (which is what produced 0.2/0.4/0.6 for
+  // small integer ranges in the first place).
+  return { tickmode: 'linear', dtick, tickformat: 'd', rangemode: 'tozero' };
+}
+
 // Brief highlight pulse on a chart's container right after it (re)renders,
 // so updates (new PDF loaded, filters changed) are visually obvious rather
 // than a chart silently swapping content.
@@ -264,7 +278,8 @@ function renderCorpus() {
       }));
       Plotly.newPlot('chart-yearly', traces, {
         barmode: 'group', title: 'Hükümuri identificate pe ani (an aproximativ)',
-        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 400, margin: { t: 40 }
+        paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 400, margin: { t: 40 },
+        yaxis: integerYAxis(traces)
       }, { responsive: true, displayModeBar: true, scrollZoom: true, modeBarButtonsToRemove: ['lasso2d', 'select2d'], displaylogo: false }).then(() => flashChart('chart-yearly'));
     } else {
       document.getElementById('chart-yearly').innerHTML = '<p style="padding:20px;">Anul nu a putut fi determinat.</p>';
@@ -306,7 +321,8 @@ function renderCorpus() {
     }));
     Plotly.newPlot('chart-yearly', traces, {
       barmode: 'group', title: 'Documente identificate pe ani (demonstrativ)',
-      paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 400, margin: { t: 40 }
+      paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 400, margin: { t: 40 },
+      yaxis: integerYAxis(traces)
     }, { responsive: true, displayModeBar: true, scrollZoom: true, modeBarButtonsToRemove: ['lasso2d', 'select2d'], displaylogo: false }).then(() => flashChart('chart-yearly'));
 
     const byTheme = groupCount(DEMO_DATA, r => r.tema);
@@ -341,7 +357,8 @@ function renderCronologie() {
     }));
     Plotly.newPlot('chart-cronologie', traces, {
       title: 'Evoluția temelor în timp (an aproximativ)',
-      paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 400, margin: { t: 40 }
+      paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 400, margin: { t: 40 },
+      yaxis: integerYAxis(traces)
     }, { responsive: true, displayModeBar: true, scrollZoom: true, modeBarButtonsToRemove: ['lasso2d', 'select2d'], displaylogo: false }).then(() => flashChart('chart-cronologie'));
   } else {
     const byYearTheme = groupCount(DEMO_DATA, r => r.an + '|||' + r.tema);
@@ -352,7 +369,8 @@ function renderCronologie() {
     }));
     Plotly.newPlot('chart-cronologie', traces, {
       title: 'Evoluția temelor în timp (demonstrativ)',
-      paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 400, margin: { t: 40 }
+      paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 400, margin: { t: 40 },
+      yaxis: integerYAxis(traces)
     }, { responsive: true, displayModeBar: true, scrollZoom: true, modeBarButtonsToRemove: ['lasso2d', 'select2d'], displaylogo: false }).then(() => flashChart('chart-cronologie'));
   }
 }
@@ -378,7 +396,8 @@ function renderTeme() {
     }));
     Plotly.newPlot('chart-teme', traces, {
       barmode: 'group', title: 'Eflak / Boğdan / Erdel – comparație tematică',
-      paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 400, margin: { t: 40 }
+      paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 400, margin: { t: 40 },
+      yaxis: integerYAxis(traces)
     }, { responsive: true, displayModeBar: true, scrollZoom: true, modeBarButtonsToRemove: ['lasso2d', 'select2d'], displaylogo: false }).then(() => flashChart('chart-teme'));
 
     const themeRows = entries.flatMap(e => e.themes.length ? e.themes : ['Neclasificat']);
@@ -394,7 +413,8 @@ function renderTeme() {
     }));
     Plotly.newPlot('chart-teme', traces, {
       barmode: 'group', title: 'Moldova și Țara Românească – comparație tematică (demonstrativ)',
-      paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 400, margin: { t: 40 }
+      paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 400, margin: { t: 40 },
+      yaxis: integerYAxis(traces)
     }, { responsive: true, displayModeBar: true, scrollZoom: true, modeBarButtonsToRemove: ['lasso2d', 'select2d'], displaylogo: false }).then(() => flashChart('chart-teme'));
 
     const ranking = Object.entries(groupCount(DEMO_DATA, r => r.tema)).sort((a, b) => b[1] - a[1]);
@@ -637,7 +657,8 @@ function renderComparatie() {
     }));
     Plotly.newPlot('chart-comparatie', traces, {
       barmode: 'group', title: 'Profil tematic: Eflak vs. Boğdan vs. Erdel',
-      paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 400, margin: { t: 40 }
+      paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 400, margin: { t: 40 },
+      yaxis: integerYAxis(traces)
     }, { responsive: true, displayModeBar: true, scrollZoom: true, modeBarButtonsToRemove: ['lasso2d', 'select2d'], displaylogo: false }).then(() => flashChart('chart-comparatie'));
   } else {
     document.getElementById('chart-comparatie').innerHTML = '<p style="padding:20px;">Nicio temă clasificată încă.</p>';
