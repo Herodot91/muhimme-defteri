@@ -509,6 +509,28 @@ function computeForceLayout(nodeIds, edges) {
   return pos;
 }
 
+// Converts a mouse event's page coordinates into the plot's own data space,
+// using Plotly's internal axis pixel<->data converters (l2p/p2l). These are
+// undocumented-but-stable internals (there's no public Plotly API for this),
+// verified directly beforehand: encoding a known data point to a pixel via
+// l2p and decoding it back via p2l round-trips exactly.
+function clientToData(gd, clientX, clientY) {
+  const xa = gd._fullLayout.xaxis, ya = gd._fullLayout.yaxis;
+  const rect = gd.getBoundingClientRect();
+  const margin = gd._fullLayout.margin;
+  return [
+    xa.p2l(clientX - rect.left - margin.l),
+    ya.p2l(clientY - rect.top - margin.t)
+  ];
+}
+
+function dataToClient(gd, x, y) {
+  const xa = gd._fullLayout.xaxis, ya = gd._fullLayout.yaxis;
+  const rect = gd.getBoundingClientRect();
+  const margin = gd._fullLayout.margin;
+  return [rect.left + margin.l + xa.l2p(x), rect.top + margin.t + ya.l2p(y)];
+}
+
 function renderNetworkChart(divId, nodeWeights, edgeWeights, title, onNodeClick) {
   const nodeIds = Object.keys(nodeWeights);
   if (!nodeIds.length) {
@@ -522,16 +544,21 @@ function renderNetworkChart(divId, nodeWeights, edgeWeights, title, onNodeClick)
   nodeIds.forEach(id => degree[id] = 0);
   edges.forEach(([a, b]) => { degree[a] = (degree[a] || 0) + 1; degree[b] = (degree[b] || 0) + 1; });
 
-  const edgeX = [], edgeY = [];
-  edges.forEach(([a, b]) => {
-    edgeX.push(pos[a][0], pos[b][0], null);
-    edgeY.push(pos[a][1], pos[b][1], null);
-  });
+  const nodeSize = nodeIds.map(id => 16 + (degree[id] || 0) * 6);
+  const nodeText = nodeIds.map(id => `${id}<br>Legături: ${degree[id] || 0}<br>Menționări: ${nodeWeights[id]}<br><i>Trage nodul pentru a-l muta</i>`);
 
+  function buildEdgeXY() {
+    const edgeX = [], edgeY = [];
+    edges.forEach(([a, b]) => {
+      edgeX.push(pos[a][0], pos[b][0], null);
+      edgeY.push(pos[a][1], pos[b][1], null);
+    });
+    return [edgeX, edgeY];
+  }
+
+  const [edgeX, edgeY] = buildEdgeXY();
   const nodeX = nodeIds.map(id => pos[id][0]);
   const nodeY = nodeIds.map(id => pos[id][1]);
-  const nodeSize = nodeIds.map(id => 16 + (degree[id] || 0) * 6);
-  const nodeText = nodeIds.map(id => `${id}<br>Legături: ${degree[id] || 0}<br>Menționări: ${nodeWeights[id]}`);
 
   const edgeTrace = { x: edgeX, y: edgeY, mode: 'lines', line: { width: 1, color: '#8b7355' }, hoverinfo: 'none', type: 'scatter' };
   const nodeTrace = {
@@ -547,7 +574,7 @@ function renderNetworkChart(divId, nodeWeights, edgeWeights, title, onNodeClick)
     title, showlegend: false, hovermode: 'closest',
     xaxis: { showgrid: false, zeroline: false, showticklabels: false },
     yaxis: { showgrid: false, zeroline: false, showticklabels: false },
-    paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 400, margin: { t: 40 }
+    paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 650, margin: { t: 40 }
   }, { responsive: true, displayModeBar: true, scrollZoom: true, modeBarButtonsToRemove: ['lasso2d', 'select2d'], displaylogo: false })
     .then(() => Plotly.animate(divId, {
       data: [{}, { marker: { size: nodeSize, color: '#8b3a2f', line: { width: 1, color: '#2b2013' } } }],
@@ -555,11 +582,50 @@ function renderNetworkChart(divId, nodeWeights, edgeWeights, title, onNodeClick)
     }, { transition: { duration: 600, easing: 'elastic-out' }, frame: { duration: 600, redraw: false } }))
     .then(() => flashChart(divId));
 
-  const el = document.getElementById(divId);
-  el.on('plotly_click', (data) => {
-    const pt = data.points[0];
-    if (pt.curveNumber === 1 && pt.customdata) onNodeClick(pt.customdata);
-  });
+  const gd = document.getElementById(divId);
+
+  function redraw() {
+    const [ex, ey] = buildEdgeXY();
+    const nx = nodeIds.map(id => pos[id][0]);
+    const ny = nodeIds.map(id => pos[id][1]);
+    Plotly.restyle(divId, { x: [ex, nx], y: [ey, ny] }, [0, 1]);
+  }
+
+  function findNearestNode(clientX, clientY, thresholdPx) {
+    let best = null, bestDist = thresholdPx;
+    nodeIds.forEach((id, i) => {
+      const [px, py] = dataToClient(gd, pos[id][0], pos[id][1]);
+      const d = Math.hypot(px - clientX, py - clientY);
+      const r = nodeSize[i] / 2 + 8;
+      if (d < Math.max(r, thresholdPx) && d < bestDist + 200) { bestDist = d; best = id; }
+    });
+    return best;
+  }
+
+  // Custom drag-to-move: intercepted in the capture phase so it runs before
+  // Plotly's own pan/zoom handlers. Clicking a node without moving it still
+  // opens the detail panel (via onNodeClick); moving the mouse beyond a
+  // small threshold repositions the node and its edges live instead.
+  gd.addEventListener('mousedown', (e) => {
+    const nodeId = findNearestNode(e.clientX, e.clientY, 18);
+    if (!nodeId) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    let moved = false;
+    const onMove = (ev) => {
+      const [dx, dy] = clientToData(gd, ev.clientX, ev.clientY);
+      pos[nodeId] = [dx, dy];
+      moved = true;
+      redraw();
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      if (!moved) onNodeClick(nodeId);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, true);
 }
 
 function renderRetele() {
