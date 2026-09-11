@@ -252,7 +252,7 @@ function renderCorpus() {
       Plotly.newPlot('chart-yearly', traces, {
         barmode: 'group', title: 'Hükümuri identificate pe ani (an aproximativ)',
         paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 400, margin: { t: 40 }
-      }, { responsive: true, displayModeBar: false });
+      }, { responsive: true, displayModeBar: true, scrollZoom: true, modeBarButtonsToRemove: ['lasso2d', 'select2d'], displaylogo: false });
     } else {
       document.getElementById('chart-yearly').innerHTML = '<p style="padding:20px;">Anul nu a putut fi determinat.</p>';
     }
@@ -262,7 +262,7 @@ function renderCorpus() {
     const byTheme = groupCount(themeRows, t => t);
     Plotly.newPlot('chart-theme-pie', [{ labels: Object.keys(byTheme), values: Object.values(byTheme), type: 'pie' }],
       { title: 'Structura tematică', paper_bgcolor: 'transparent', height: 400, margin: { t: 40 } },
-      { responsive: true, displayModeBar: false });
+      { responsive: true, displayModeBar: true, scrollZoom: true, modeBarButtonsToRemove: ['lasso2d', 'select2d'], displaylogo: false });
 
     const regionNames = Object.keys(REGION_TERMS);
     const highlights = document.getElementById('highlights');
@@ -294,12 +294,12 @@ function renderCorpus() {
     Plotly.newPlot('chart-yearly', traces, {
       barmode: 'group', title: 'Documente identificate pe ani (demonstrativ)',
       paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 400, margin: { t: 40 }
-    }, { responsive: true, displayModeBar: false });
+    }, { responsive: true, displayModeBar: true, scrollZoom: true, modeBarButtonsToRemove: ['lasso2d', 'select2d'], displaylogo: false });
 
     const byTheme = groupCount(DEMO_DATA, r => r.tema);
     Plotly.newPlot('chart-theme-pie', [{ labels: Object.keys(byTheme), values: Object.values(byTheme), type: 'pie' }],
       { title: 'Structura tematică (demonstrativ)', paper_bgcolor: 'transparent', height: 400, margin: { t: 40 } },
-      { responsive: true, displayModeBar: false });
+      { responsive: true, displayModeBar: true, scrollZoom: true, modeBarButtonsToRemove: ['lasso2d', 'select2d'], displaylogo: false });
 
     document.getElementById('highlights').innerHTML = '';
   }
@@ -329,7 +329,7 @@ function renderCronologie() {
     Plotly.newPlot('chart-cronologie', traces, {
       title: 'Evoluția temelor în timp (an aproximativ)',
       paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 400, margin: { t: 40 }
-    }, { responsive: true, displayModeBar: false });
+    }, { responsive: true, displayModeBar: true, scrollZoom: true, modeBarButtonsToRemove: ['lasso2d', 'select2d'], displaylogo: false });
   } else {
     const byYearTheme = groupCount(DEMO_DATA, r => r.an + '|||' + r.tema);
     const themes = [...new Set(DEMO_DATA.map(r => r.tema))];
@@ -340,7 +340,7 @@ function renderCronologie() {
     Plotly.newPlot('chart-cronologie', traces, {
       title: 'Evoluția temelor în timp (demonstrativ)',
       paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 400, margin: { t: 40 }
-    }, { responsive: true, displayModeBar: false });
+    }, { responsive: true, displayModeBar: true, scrollZoom: true, modeBarButtonsToRemove: ['lasso2d', 'select2d'], displaylogo: false });
   }
 }
 
@@ -366,7 +366,7 @@ function renderTeme() {
     Plotly.newPlot('chart-teme', traces, {
       barmode: 'group', title: 'Eflak / Boğdan / Erdel – comparație tematică',
       paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 400, margin: { t: 40 }
-    }, { responsive: true, displayModeBar: false });
+    }, { responsive: true, displayModeBar: true, scrollZoom: true, modeBarButtonsToRemove: ['lasso2d', 'select2d'], displaylogo: false });
 
     const themeRows = entries.flatMap(e => e.themes.length ? e.themes : ['Neclasificat']);
     const ranking = Object.entries(groupCount(themeRows, t => t)).sort((a, b) => b[1] - a[1]);
@@ -382,7 +382,7 @@ function renderTeme() {
     Plotly.newPlot('chart-teme', traces, {
       barmode: 'group', title: 'Moldova și Țara Românească – comparație tematică (demonstrativ)',
       paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 400, margin: { t: 40 }
-    }, { responsive: true, displayModeBar: false });
+    }, { responsive: true, displayModeBar: true, scrollZoom: true, modeBarButtonsToRemove: ['lasso2d', 'select2d'], displaylogo: false });
 
     const ranking = Object.entries(groupCount(DEMO_DATA, r => r.tema)).sort((a, b) => b[1] - a[1]);
     document.getElementById('table-teme').innerHTML = '<tr><th>Temă</th><th>Număr documente</th></tr>' +
@@ -512,7 +512,7 @@ function renderNetworkChart(divId, nodeWeights, edgeWeights, title, onNodeClick)
     xaxis: { showgrid: false, zeroline: false, showticklabels: false },
     yaxis: { showgrid: false, zeroline: false, showticklabels: false },
     paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 400, margin: { t: 40 }
-  }, { responsive: true, displayModeBar: false });
+  }, { responsive: true, displayModeBar: true, scrollZoom: true, modeBarButtonsToRemove: ['lasso2d', 'select2d'], displaylogo: false });
 
   const el = document.getElementById(divId);
   el.on('plotly_click', (data) => {
@@ -617,7 +617,7 @@ function renderComparatie() {
     Plotly.newPlot('chart-comparatie', traces, {
       barmode: 'group', title: 'Profil tematic: Eflak vs. Boğdan vs. Erdel',
       paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 400, margin: { t: 40 }
-    }, { responsive: true, displayModeBar: false });
+    }, { responsive: true, displayModeBar: true, scrollZoom: true, modeBarButtonsToRemove: ['lasso2d', 'select2d'], displaylogo: false });
   } else {
     document.getElementById('chart-comparatie').innerHTML = '<p style="padding:20px;">Nicio temă clasificată încă.</p>';
   }
