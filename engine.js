@@ -1,9 +1,14 @@
 // Ottoman-Turkish text engine — JS port of the Python muhimme_app.py engine.
 // Same regex-based flexible matching + hüküm parsing, running client-side.
 
+// Long vowels (â, î, û) are used constantly in this scholarly Ottoman
+// transliteration (İA/TDV convention) to mark Arabic/Persian vowel length —
+// â was already covered, but î and û were missing, silently failing to
+// match any term containing a long i or u (e.g. "teşîr" never matched a
+// plain "teshir" search until this was added).
 const TR_VARIANTS = {
-  a: '[aàâ]', e: '[eê]', i: '[iıİI]', o: '[oö]',
-  u: '[uü]', g: '[gğ]', s: '[sş]', c: '[cç]'
+  a: '[aàâ]', e: '[eê]', i: '[iıİIî]', o: '[oö]',
+  u: '[uüû]', g: '[gğ]', s: '[sş]', c: '[cç]'
 };
 
 function escapeRegex(s) {
@@ -38,6 +43,16 @@ const THEME_TERMS = {
   "Administrație": ["nizam", "tahrir", "tevzi", "kadi", "sancak", "iskan", "reaya", "tayin", "azl", "voyvoda"],
   "Militar / Securitate": ["asker", "ceng", "cenk", "harb", "sefer", "kale", "muhafaza", "lesker", "yenicer", "dusman"],
   "Diplomație": ["elci", "ahidname", "sulh", "musalaha", "mektub"],
+  // Conquest/incorporation of new territory (feth, teshir, istila) together
+  // with the conciliatory istimalet policy toward the newly annexed
+  // population (istimalet) — kept as one combined theme since the two are
+  // historically linked in these orders. Two terms were tried and dropped
+  // as too generic for this corpus: "ilhak" mostly means "appended/added
+  // [amount]" here (matched a mosque's water-supply accounting), and
+  // "himaye" mostly appears in "don't harbor/shelter the rebel" orders
+  // (chasing Şehzade Bayezid), a different sense of "protection" than
+  // istimalet toward a newly conquered population.
+  "Anexare / Istimalet": ["feth", "teshir", "istila", "istimalet"],
 };
 
 const PERIOD_RE = /(\d{3,4})\s*[–\-]\s*(\d{3,4})\s*\/\s*(\d{4})\s*[–\-]\s*(\d{4})/;
