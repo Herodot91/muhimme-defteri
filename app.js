@@ -424,68 +424,176 @@ function renderTeme() {
 }
 
 // ---------------------------------------------------------------------
-// Hartă (real historical map: Cantelli da Vignola / De Rossi, Roma 1686)
+// Hartă (historical maps; markers are linked to the uploaded volume)
 // ---------------------------------------------------------------------
 
-const MAP_IMG = { src: 'harta-cantelli.jpg', w: 1920, h: 1581 };
-const MAP_VIEW = [130, 95, 1640, 1385];
-
-// Marker positions in pixels of harta-cantelli.jpg, checked against the town
-// symbols and region labels printed on the map.
-const MAP_POSITIONS = {
-  "Boğdan (Moldova)": [800, 700],
-  "Eflak (Țara Românească)": [470, 880],
-  "Erdel (Ardeal / Transilvania)": [390, 690],
-  "Kili (Chilia)": [1187, 774],
-  "Akkerman (Cetatea Albă)": [1258, 712],
-  "Bender (Tighina)": [1048, 497],
-  "Hotin (Khotyn)": [713, 372],
-  "Silistre": [575, 1360],
+// Marker positions are pixels of each image, checked against the town symbols
+// and region labels printed on the maps.
+const HISTORICAL_MAPS = {
+  medieval: {
+    label: 'Evul Mediu — Moldova, 1483',
+    src: 'harta-moldavia-1483.jpg', w: 1887, h: 1722, view: [0, 0, 1887, 1722],
+    positions: {
+      "Boğdan (Moldova)": [444, 517],
+      "Eflak (Țara Românească)": [300, 1640],
+      "Erdel (Ardeal / Transilvania)": [170, 1420],
+      "Kili (Chilia)": [1475, 1582],
+      "Akkerman (Cetatea Albă)": [1800, 1223],
+      "Bender (Tighina)": [1514, 925],
+      "Hotin (Khotyn)": [535, 93],
+    },
+    credit: 'Harta: <em>The Principality of Moldavia in 1483</em>, ArdadN, Wikimedia Commons, licență CC BY-SA 4.0. '
+      + 'Boğdan este marcat la Suceava, capitala Moldovei în 1483; Eflak și Erdel sunt în afara cadrului hărții, la sud și la vest.',
+  },
+  baroc: {
+    label: '1686 — Cantelli da Vignola',
+    src: 'harta-cantelli.jpg', w: 1920, h: 1581, view: [130, 95, 1640, 1385],
+    positions: {
+      "Boğdan (Moldova)": [800, 700],
+      "Eflak (Țara Românească)": [470, 880],
+      "Erdel (Ardeal / Transilvania)": [390, 690],
+      "Kili (Chilia)": [1187, 774],
+      "Akkerman (Cetatea Albă)": [1258, 712],
+      "Bender (Tighina)": [1048, 497],
+      "Hotin (Khotyn)": [713, 372],
+      "Silistre": [575, 1360],
+    },
+    credit: 'Harta: Giacomo Cantelli da Vignola, <em>Descritione delli Principati della Moldavia e Valachia</em>, ed. G. G. de Rossi, Roma, 1686 '
+      + '(David Rumsey Map Collection, prin Wikimedia Commons, domeniu public). Pe harta originală, numele „Valachia” și „Moldavia” sunt uneori inversate.',
+  },
 };
 
+const MAP_LABELS = {
+  "Boğdan (Moldova)": "Boğdan",
+  "Eflak (Țara Românească)": "Eflak",
+  "Erdel (Ardeal / Transilvania)": "Erdel",
+  "Kili (Chilia)": "Kili · Chilia",
+  "Akkerman (Cetatea Albă)": "Akkerman · Cetatea Albă",
+  "Bender (Tighina)": "Bender · Tighina",
+  "Hotin (Khotyn)": "Hotin",
+  "Silistre": "Silistre",
+};
+
+// Historical context shown next to the document hits for each place.
+const MAP_NOTES = {
+  "Boğdan (Moldova)": "Principat sub suzeranitate otomană. În 1483 capitala era la Suceava.",
+  "Eflak (Țara Românească)": "Principat sub suzeranitate otomană, la sud de Carpați și de Dunărea inferioară.",
+  "Erdel (Ardeal / Transilvania)": "În 1483, voievodat în cadrul Regatului Ungariei; în secolul al XVI-lea, principat sub suzeranitate otomană.",
+  "Kili (Chilia)": "Cetate moldovenească în 1483 (Chilia Nouă); cucerită de otomani în 1484.",
+  "Akkerman (Cetatea Albă)": "Cetate moldovenească în 1483 (Cetatea Albă); cucerită de otomani în 1484.",
+  "Bender (Tighina)": "Reședință de comitat al Moldovei în 1483; trecută sub control otoman în 1538.",
+  "Hotin (Khotyn)": "Cetate pe Nistru, în comitatul Hotin al Moldovei în 1483.",
+  "Silistre": "Cetate otomană la Dunăre; nu apare pe harta din 1483 (este la sud de cadrul ei).",
+};
+
+const mapState = { key: 'medieval', place: null, volume: '', yearFrom: '', yearTo: '' };
+
+function mapEntries() {
+  let list = corpusEntries();
+  if (mapState.volume) list = list.filter(e => e.volume === mapState.volume);
+  if (mapState.yearFrom) list = list.filter(e => e.year != null && e.year >= +mapState.yearFrom);
+  if (mapState.yearTo) list = list.filter(e => e.year != null && e.year <= +mapState.yearTo);
+  return list;
+}
+
+function mapEntriesFor(name, list) {
+  return REGION_TERMS[name]
+    ? list.filter(e => e.regions.includes(name))
+    : list.filter(e => e.fortresses.includes(name));
+}
+
+function renderMapToolbar() {
+  const bar = document.getElementById('map-toolbar');
+  let html = Object.entries(HISTORICAL_MAPS).map(([k, m]) =>
+    `<button type="button" data-map="${k}" class="${k === mapState.key ? 'active' : ''}">${m.label}</button>`).join('');
+  if (hasPdf()) {
+    const all = corpusEntries();
+    const volumes = [...new Set(all.map(e => e.volume))];
+    const years = [...new Set(all.map(e => e.year).filter(y => y != null))].sort((a, b) => a - b);
+    const opt = (v, cur, text) => `<option value="${v}" ${String(v) === String(cur) ? 'selected' : ''}>${text}</option>`;
+    if (volumes.length > 1) {
+      html += `<label>Volum <select id="map-volume">${opt('', mapState.volume, 'Toate')}${volumes.map(v => opt(v, mapState.volume, v)).join('')}</select></label>`;
+    }
+    if (years.length > 1) {
+      html += `<label>Din anul <select id="map-year-from">${opt('', mapState.yearFrom, 'început')}${years.map(y => opt(y, mapState.yearFrom, y)).join('')}</select></label>
+        <label>până în <select id="map-year-to">${opt('', mapState.yearTo, 'sfârșit')}${years.map(y => opt(y, mapState.yearTo, y)).join('')}</select></label>`;
+    }
+  }
+  bar.innerHTML = html;
+  bar.querySelectorAll('button[data-map]').forEach(b => b.addEventListener('click', () => { mapState.key = b.dataset.map; renderHarta(); }));
+  const bind = (id, key) => { const el = document.getElementById(id); if (el) el.addEventListener('change', () => { mapState[key] = el.value; renderHarta(); }); };
+  bind('map-volume', 'volume'); bind('map-year-from', 'yearFrom'); bind('map-year-to', 'yearTo');
+}
+
+function renderMapDetail() {
+  const box = document.getElementById('map-detail');
+  const name = mapState.place;
+  if (!name) {
+    box.innerHTML = hasPdf() ? '<p class="hint" style="margin-top:12px;">Dă clic pe un cerc de pe hartă pentru a vedea hükümurile din volumul încărcat care menționează acel loc.</p>' : '';
+    return;
+  }
+  const list = mapEntriesFor(name, mapEntries());
+  box.innerHTML = `<div class="doc-detail"><p style="margin-top:0;"><i>${MAP_NOTES[name] || ''}</i></p></div>` + renderEntryList(MAP_LABELS[name] || name, list);
+}
+
 function renderHarta() {
-  const entries = hasPdf() ? corpusEntries() : [];
+  const map = HISTORICAL_MAPS[mapState.key];
+  const entries = hasPdf() ? mapEntries() : [];
   const note = document.getElementById('map-note');
   note.textContent = hasPdf()
-    ? 'Cercurile arată numărul de hükümuri care menționează fiecare regiune sau cetate. Rotiță = zoom, tragere = deplasare.'
+    ? 'Cercurile arată numărul de hükümuri din volumul încărcat care menționează fiecare regiune sau cetate. Dă clic pe un cerc pentru detalii; rotiță = zoom, tragere = deplasare, dublu clic = resetare.'
     : 'Încarcă un volum PDF pentru a vedea numărul de mențiuni pe hartă (acum toate valorile sunt 0).';
-
-  const counts = {};
-  Object.keys(REGION_TERMS).forEach(name => { counts[name] = entries.filter(e => e.regions.includes(name)).length; });
-  Object.keys(FORTRESS_TERMS).forEach(name => {
-    if (name !== 'Yedikule') counts[name] = entries.filter(e => e.fortresses.includes(name)).length;
-  });
+  renderMapToolbar();
 
   const radius = c => 24 + Math.min(c, 90) * 0.55;
+  const onMap = Object.keys(map.positions);
+  if (mapState.place && !onMap.includes(mapState.place) && !(REGION_TERMS[mapState.place] || FORTRESS_TERMS[mapState.place])) mapState.place = null;
   let markers = '';
-  for (const [name, [mx, my]] of Object.entries(MAP_POSITIONS)) {
-    const c = counts[name] || 0;
+  for (const [name, [mx, my]] of Object.entries(map.positions)) {
+    const c = mapEntriesFor(name, entries).length;
     const r = radius(c);
-    const short = name.split(' ')[0];
     const fill = REGION_TERMS[name] ? '#8b3a2f' : '#1f4e6b';
-    markers += `<g><title>${name}: ${c} hükümuri</title>
-      <circle cx="${mx}" cy="${my}" r="${r}" fill="${fill}" fill-opacity="0.72" stroke="#fff8e6" stroke-width="3" />
-      <text x="${mx}" y="${my + 9}" text-anchor="middle" font-family="Georgia, serif" font-size="26" font-weight="bold" fill="#fff8e6">${c}</text>
-      <text x="${mx}" y="${my - r - 10}" text-anchor="middle" font-family="Georgia, serif" font-size="30" font-weight="bold" fill="#2b2013" stroke="#fff8e6" stroke-width="6" paint-order="stroke">${short}</text></g>`;
+    const selected = name === mapState.place;
+    const nearRight = mx > map.view[0] + map.view[2] - 260;
+    markers += `<g data-place="${name}" style="cursor:pointer;"><title>${name}: ${c} hükümuri</title>
+      <circle cx="${mx}" cy="${my}" r="${r}" fill="${fill}" fill-opacity="0.75" stroke="${selected ? '#ffd24a' : '#fff8e6'}" stroke-width="${selected ? 7 : 3}" />
+      <text x="${mx}" y="${my + 9}" text-anchor="middle" font-family="Georgia, serif" font-size="26" font-weight="bold" fill="#fff8e6" pointer-events="none">${c}</text>
+      <text x="${nearRight ? mx + r : mx}" y="${my - r - 10}" text-anchor="${nearRight ? 'end' : 'middle'}" font-family="Georgia, serif" font-size="30" font-weight="bold" fill="#2b2013" stroke="#fff8e6" stroke-width="6" paint-order="stroke" pointer-events="none">${MAP_LABELS[name] || name}</text></g>`;
   }
 
-  const container = document.getElementById('map-container');
-  container.innerHTML = `
-    <svg id="map-svg" viewBox="${MAP_VIEW.join(' ')}" xmlns="http://www.w3.org/2000/svg"
+  const offMap = Object.keys(REGION_TERMS).concat(Object.keys(FORTRESS_TERMS))
+    .filter(n => n !== 'Yedikule' && !onMap.includes(n));
+  const chips = offMap.map(n => `<button type="button" class="map-chip" data-place="${n}">${MAP_LABELS[n] || n}: ${mapEntriesFor(n, entries).length}</button>`).join('');
+
+  document.getElementById('map-container').innerHTML = `
+    <svg id="map-svg" viewBox="${map.view.join(' ')}" xmlns="http://www.w3.org/2000/svg"
          style="width:100%; height:auto; border:6px solid #6b4a2f; border-radius:4px; cursor:grab; touch-action:none; background:#efe3c6;">
-      <image href="${MAP_IMG.src}" x="0" y="0" width="${MAP_IMG.w}" height="${MAP_IMG.h}" />
+      <image href="${map.src}" x="0" y="0" width="${map.w}" height="${map.h}" />
       ${markers}
     </svg>
-    <p class="hint" style="margin-top:8px;">Harta: Giacomo Cantelli da Vignola, <em>Descritione delli Principati della Moldavia e Valachia</em>, ed. G. G. de Rossi, Roma, 1686 (David Rumsey Map Collection, prin Wikimedia Commons, domeniu public). Pe harta originală, numele „Valachia” și „Moldavia” sunt uneori inversate.</p>`;
+    ${chips ? `<p class="hint" style="margin:8px 0 0;">Fără poziție pe această hartă: ${chips}</p>` : ''}
+    <p class="hint" style="margin-top:8px;">${map.credit} Harta arată un moment istoric; hükümurile din registre sunt din secolul al XVI-lea.</p>`;
 
   const svg = document.getElementById('map-svg');
-  let view = MAP_VIEW.slice();
+  const select = name => {
+    mapState.place = name;
+    svg.querySelectorAll('g[data-place]').forEach(g => {
+      const on = g.dataset.place === name;
+      const circle = g.querySelector('circle');
+      circle.setAttribute('stroke', on ? '#ffd24a' : '#fff8e6');
+      circle.setAttribute('stroke-width', on ? 7 : 3);
+    });
+    renderMapDetail();
+  };
+  document.querySelectorAll('#map-container .map-chip').forEach(b => b.addEventListener('click', () => select(b.dataset.place)));
+
+  let view = map.view.slice();
   const setView = () => svg.setAttribute('viewBox', view.join(' '));
   const clamp = () => {
-    view[2] = Math.min(Math.max(view[2], MAP_VIEW[2] / 8), MAP_VIEW[2]);
-    view[3] = view[2] * MAP_VIEW[3] / MAP_VIEW[2];
-    view[0] = Math.min(Math.max(view[0], MAP_VIEW[0]), MAP_VIEW[0] + MAP_VIEW[2] - view[2]);
-    view[1] = Math.min(Math.max(view[1], MAP_VIEW[1]), MAP_VIEW[1] + MAP_VIEW[3] - view[3]);
+    view[2] = Math.min(Math.max(view[2], map.view[2] / 8), map.view[2]);
+    view[3] = view[2] * map.view[3] / map.view[2];
+    view[0] = Math.min(Math.max(view[0], map.view[0]), map.view[0] + map.view[2] - view[2]);
+    view[1] = Math.min(Math.max(view[1], map.view[1]), map.view[1] + map.view[3] - view[3]);
   };
   svg.addEventListener('wheel', ev => {
     ev.preventDefault();
@@ -498,21 +606,30 @@ function renderHarta() {
     clamp(); setView();
   }, { passive: false });
   svg.addEventListener('pointerdown', ev => {
+    const hit = ev.target.closest && ev.target.closest('g[data-place]');
+    const startX = ev.clientX, startY = ev.clientY;
+    let moved = false, lx = startX, ly = startY;
     svg.setPointerCapture(ev.pointerId);
     svg.style.cursor = 'grabbing';
-    let lx = ev.clientX, ly = ev.clientY;
     const move = e => {
+      if (Math.hypot(e.clientX - startX, e.clientY - startY) > 4) moved = true;
       const rect = svg.getBoundingClientRect();
       view[0] -= (e.clientX - lx) * view[2] / rect.width;
       view[1] -= (e.clientY - ly) * view[3] / rect.height;
       lx = e.clientX; ly = e.clientY;
       clamp(); setView();
     };
-    const up = () => { svg.style.cursor = 'grab'; svg.removeEventListener('pointermove', move); svg.removeEventListener('pointerup', up); };
+    const up = () => {
+      svg.style.cursor = 'grab';
+      svg.removeEventListener('pointermove', move);
+      svg.removeEventListener('pointerup', up);
+      if (!moved && hit) select(hit.dataset.place);
+    };
     svg.addEventListener('pointermove', move);
     svg.addEventListener('pointerup', up);
   });
-  svg.addEventListener('dblclick', () => { view = MAP_VIEW.slice(); setView(); });
+  svg.addEventListener('dblclick', () => { view = map.view.slice(); setView(); });
+  renderMapDetail();
 }
 
 // ---------------------------------------------------------------------

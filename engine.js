@@ -23,6 +23,18 @@ function findFlexible(term, text) {
   return new RegExp(flexiblePattern(term), 'i').test(text);
 }
 
+// Short names that collide with ordinary words under flexible matching: "kili"
+// also matched kilise (church), Kırkkilise (a Thrace town), Kilis (a town near
+// Aleppo) and, because ı/i are interchangeable, kılıç (sword) and kılınup.
+// These terms must be a whole word and use a strict dotted i.
+const WHOLE_WORD_TERMS = new Set(['kili']);
+
+function matchesTerm(term, text) {
+  if (!WHOLE_WORD_TERMS.has(term)) return findFlexible(term, text);
+  const body = term.split('').map(ch => ch === 'i' ? '[iîİ]' : escapeRegex(ch)).join('');
+  return new RegExp('(?<![\\p{L}])' + body + '(?![\\p{L}])', 'iu').test(text);
+}
+
 const REGION_TERMS = {
   "Eflak (Țara Românească)": ["eflak"],
   "Boğdan (Moldova)": ["bogdan"],
@@ -134,9 +146,9 @@ function parseEntries(pages, volumeLabel) {
     }
 
     const textAll = summary + " " + rest.slice(0, 2500);
-    const regions = Object.entries(REGION_TERMS).filter(([, vs]) => vs.some(v => findFlexible(v, textAll))).map(([n]) => n);
-    const fortresses = Object.entries(FORTRESS_TERMS).filter(([, vs]) => vs.some(v => findFlexible(v, textAll))).map(([n]) => n);
-    const themes = Object.entries(THEME_TERMS).filter(([, vs]) => vs.some(v => findFlexible(v, textAll))).map(([n]) => n);
+    const regions = Object.entries(REGION_TERMS).filter(([, vs]) => vs.some(v => matchesTerm(v, textAll))).map(([n]) => n);
+    const fortresses = Object.entries(FORTRESS_TERMS).filter(([, vs]) => vs.some(v => matchesTerm(v, textAll))).map(([n]) => n);
+    const themes = Object.entries(THEME_TERMS).filter(([, vs]) => vs.some(v => matchesTerm(v, textAll))).map(([n]) => n);
 
     entries.push({
       volume: volumeLabel,

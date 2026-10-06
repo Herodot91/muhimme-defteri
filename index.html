@@ -89,6 +89,11 @@
   .badge { display: inline-block; background: var(--accent); color: #fff; border-radius: 10px; padding: 1px 9px; font-size: 0.75rem; margin-left: 6px; }
   .badge.alt { background: var(--accent-2); }
   footer { max-width: 1200px; margin: 40px auto 0; padding-top: 16px; border-top: 1px solid var(--border); font-size: 0.85rem; opacity: 0.75; }
+  .map-toolbar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-bottom: 10px; }
+  .map-toolbar button { font-family: inherit; font-size: 0.9rem; background: var(--bg-alt); border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; cursor: pointer; color: var(--ink); }
+  .map-toolbar button.active { background: var(--accent); color: #fff8e6; border-color: var(--accent); }
+  .map-toolbar label { font-size: 0.85rem; display: inline-flex; gap: 6px; align-items: center; }
+  .map-chip { font-family: inherit; font-size: 0.85rem; background: var(--bg-alt); border: 1px solid var(--border); border-radius: 14px; padding: 3px 10px; cursor: pointer; color: var(--ink); margin: 0 6px 6px 0; }
   .status { font-size: 0.85rem; padding: 6px 0; }
   .status.ok { color: var(--accent-2); }
   .status.err { color: var(--accent); }
@@ -180,7 +185,9 @@
 
     <section id="harta" class="panel">
       <div id="map-note" class="hint" style="margin-bottom:10px;"></div>
+      <div id="map-toolbar" class="map-toolbar"></div>
       <div id="map-container"></div>
+      <div id="map-detail"></div>
     </section>
 
     <section id="retele" class="panel">

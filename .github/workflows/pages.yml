@@ -26,7 +26,7 @@ jobs:
       - name: Prepare Pages folder (static site files only)
         run: |
           mkdir -p _site
-          cp index.html app.js engine.js harta-cantelli.jpg _site/
+          cp index.html app.js engine.js harta-cantelli.jpg harta-moldavia-1483.jpg _site/
           cp -r vendor _site/vendor
           touch _site/.nojekyll
       - name: Setup Pages
