@@ -424,31 +424,31 @@ function renderTeme() {
 }
 
 // ---------------------------------------------------------------------
-// Hartă (stylized historical map, ported from the Python SVG builder)
+// Hartă (real historical map: Cantelli da Vignola / De Rossi, Roma 1686)
 // ---------------------------------------------------------------------
 
+const MAP_IMG = { src: 'harta-cantelli.jpg', w: 1920, h: 1581 };
+const MAP_VIEW = [130, 95, 1640, 1385];
+
+// Marker positions in pixels of harta-cantelli.jpg, checked against the town
+// symbols and region labels printed on the map.
 const MAP_POSITIONS = {
-  "Boğdan (Moldova)": [560, 120],
-  "Eflak (Țara Românească)": [420, 300],
-  "Erdel (Ardeal / Transilvania)": [270, 210],
-  "Kili (Chilia)": [640, 310],
-  "Akkerman (Cetatea Albă)": [690, 210],
-  "Bender (Tighina)": [630, 150],
-  "Hotin (Khotyn)": [560, 55],
-  "Silistre": [470, 390],
+  "Boğdan (Moldova)": [800, 700],
+  "Eflak (Țara Românească)": [470, 880],
+  "Erdel (Ardeal / Transilvania)": [390, 690],
+  "Kili (Chilia)": [1187, 774],
+  "Akkerman (Cetatea Albă)": [1258, 712],
+  "Bender (Tighina)": [1048, 497],
+  "Hotin (Khotyn)": [713, 372],
+  "Silistre": [575, 1360],
 };
 
 function renderHarta() {
   const entries = hasPdf() ? corpusEntries() : [];
   const note = document.getElementById('map-note');
-  if (hasPdf()) {
-    const centuries = [...new Set(state.volumes.map(v => v.period && v.period.century).filter(c => c != null))].sort();
-    note.textContent = centuries.length
-      ? `Volume încărcate: ${centuries.map(c => 'secolul ' + ROMAN_NUMERALS[c]).join(', ')}. Hartă schematică ilustrativă, nu o proiecție geografică precisă.`
-      : 'Secolul volumelor încărcate nu a putut fi identificat automat. Hartă schematică ilustrativă.';
-  } else {
-    note.textContent = 'Hartă disponibilă doar cu date reale — încarcă un volum PDF pentru a o vedea populată.';
-  }
+  note.textContent = hasPdf()
+    ? 'Cercurile arată numărul de hükümuri care menționează fiecare regiune sau cetate. Rotiță = zoom, tragere = deplasare.'
+    : 'Încarcă un volum PDF pentru a vedea numărul de mențiuni pe hartă (acum toate valorile sunt 0).';
 
   const counts = {};
   Object.keys(REGION_TERMS).forEach(name => { counts[name] = entries.filter(e => e.regions.includes(name)).length; });
@@ -456,39 +456,63 @@ function renderHarta() {
     if (name !== 'Yedikule') counts[name] = entries.filter(e => e.fortresses.includes(name)).length;
   });
 
-  const radius = c => 12 + Math.min(c, 80) * 0.5;
+  const radius = c => 24 + Math.min(c, 90) * 0.55;
   let markers = '';
   for (const [name, [mx, my]] of Object.entries(MAP_POSITIONS)) {
     const c = counts[name] || 0;
     const r = radius(c);
     const short = name.split(' ')[0];
-    const fill = REGION_TERMS[name] ? '#8b3a2f' : '#4a5a3a';
-    markers += `<circle cx="${mx}" cy="${my}" r="${r}" fill="${fill}" fill-opacity="0.75" stroke="#2b2013" stroke-width="1.5" />
-      <text x="${mx}" y="${my - r - 6}" text-anchor="middle" font-family="Georgia, serif" font-size="15" fill="#2b2013" font-weight="bold">${short}</text>
-      <text x="${mx}" y="${my + 4}" text-anchor="middle" font-family="Georgia, serif" font-size="11" fill="#f5ecd8">${c}</text>`;
+    const fill = REGION_TERMS[name] ? '#8b3a2f' : '#1f4e6b';
+    markers += `<g><title>${name}: ${c} hükümuri</title>
+      <circle cx="${mx}" cy="${my}" r="${r}" fill="${fill}" fill-opacity="0.72" stroke="#fff8e6" stroke-width="3" />
+      <text x="${mx}" y="${my + 9}" text-anchor="middle" font-family="Georgia, serif" font-size="26" font-weight="bold" fill="#fff8e6">${c}</text>
+      <text x="${mx}" y="${my - r - 10}" text-anchor="middle" font-family="Georgia, serif" font-size="30" font-weight="bold" fill="#2b2013" stroke="#fff8e6" stroke-width="6" paint-order="stroke">${short}</text></g>`;
   }
 
-  const svg = `
-    <svg viewBox="0 0 820 460" xmlns="http://www.w3.org/2000/svg" style="width:100%; max-width:820px; height:auto; background:#f0e2c0; border:6px solid #6b4a2f; border-radius:4px;">
-      <defs>
-        <radialGradient id="parchment" cx="50%" cy="45%" r="75%">
-          <stop offset="0%" stop-color="#f5ecd8" />
-          <stop offset="100%" stop-color="#e3d2a5" />
-        </radialGradient>
-      </defs>
-      <rect x="0" y="0" width="820" height="460" fill="url(#parchment)" />
-      <path d="M 650 260 Q 780 260 800 350 Q 780 440 680 440 Q 620 400 630 330 Q 630 280 650 260 Z" fill="#5b7c8c" fill-opacity="0.55" stroke="#2b2013" stroke-width="1" />
-      <text x="700" y="360" font-family="Georgia, serif" font-size="14" fill="#1d2a30" font-style="italic">Marea Neagră</text>
-      <path d="M 120 380 Q 260 370 350 360 Q 460 350 560 340 Q 620 335 650 310" fill="none" stroke="#4a6b7a" stroke-width="5" stroke-linecap="round" opacity="0.8" />
-      <text x="160" y="400" font-family="Georgia, serif" font-size="12" fill="#2b2013" font-style="italic">Dunărea</text>
-      <path d="M 560 60 Q 600 110 620 150 Q 660 180 690 210" fill="none" stroke="#4a6b7a" stroke-width="4" stroke-linecap="round" opacity="0.7" />
-      <text x="595" y="95" font-family="Georgia, serif" font-size="11" fill="#2b2013" font-style="italic">Nistru</text>
-      <path d="M 230 120 Q 300 200 260 320 Q 250 360 300 400" fill="none" stroke="#6b5a3a" stroke-width="6" stroke-dasharray="2 6" stroke-linecap="round" opacity="0.6" />
+  const container = document.getElementById('map-container');
+  container.innerHTML = `
+    <svg id="map-svg" viewBox="${MAP_VIEW.join(' ')}" xmlns="http://www.w3.org/2000/svg"
+         style="width:100%; height:auto; border:6px solid #6b4a2f; border-radius:4px; cursor:grab; touch-action:none; background:#efe3c6;">
+      <image href="${MAP_IMG.src}" x="0" y="0" width="${MAP_IMG.w}" height="${MAP_IMG.h}" />
       ${markers}
-      <text x="20" y="30" font-family="Georgia, serif" font-size="20" fill="#2b2013" font-weight="bold">Eflak · Boğdan · Erdel</text>
-      <text x="20" y="440" font-family="Georgia, serif" font-size="11" fill="#6b5a3a">Diametrul cercurilor = nr. de mențiuni. Nu este o proiecție geografică exactă.</text>
-    </svg>`;
-  document.getElementById('map-container').innerHTML = svg;
+    </svg>
+    <p class="hint" style="margin-top:8px;">Harta: Giacomo Cantelli da Vignola, <em>Descritione delli Principati della Moldavia e Valachia</em>, ed. G. G. de Rossi, Roma, 1686 (David Rumsey Map Collection, prin Wikimedia Commons, domeniu public). Pe harta originală, numele „Valachia” și „Moldavia” sunt uneori inversate.</p>`;
+
+  const svg = document.getElementById('map-svg');
+  let view = MAP_VIEW.slice();
+  const setView = () => svg.setAttribute('viewBox', view.join(' '));
+  const clamp = () => {
+    view[2] = Math.min(Math.max(view[2], MAP_VIEW[2] / 8), MAP_VIEW[2]);
+    view[3] = view[2] * MAP_VIEW[3] / MAP_VIEW[2];
+    view[0] = Math.min(Math.max(view[0], MAP_VIEW[0]), MAP_VIEW[0] + MAP_VIEW[2] - view[2]);
+    view[1] = Math.min(Math.max(view[1], MAP_VIEW[1]), MAP_VIEW[1] + MAP_VIEW[3] - view[3]);
+  };
+  svg.addEventListener('wheel', ev => {
+    ev.preventDefault();
+    const rect = svg.getBoundingClientRect();
+    const fx = (ev.clientX - rect.left) / rect.width, fy = (ev.clientY - rect.top) / rect.height;
+    const px = view[0] + fx * view[2], py = view[1] + fy * view[3];
+    const k = ev.deltaY < 0 ? 0.8 : 1.25;
+    view[2] *= k; view[3] *= k;
+    view[0] = px - fx * view[2]; view[1] = py - fy * view[3];
+    clamp(); setView();
+  }, { passive: false });
+  svg.addEventListener('pointerdown', ev => {
+    svg.setPointerCapture(ev.pointerId);
+    svg.style.cursor = 'grabbing';
+    let lx = ev.clientX, ly = ev.clientY;
+    const move = e => {
+      const rect = svg.getBoundingClientRect();
+      view[0] -= (e.clientX - lx) * view[2] / rect.width;
+      view[1] -= (e.clientY - ly) * view[3] / rect.height;
+      lx = e.clientX; ly = e.clientY;
+      clamp(); setView();
+    };
+    const up = () => { svg.style.cursor = 'grab'; svg.removeEventListener('pointermove', move); svg.removeEventListener('pointerup', up); };
+    svg.addEventListener('pointermove', move);
+    svg.addEventListener('pointerup', up);
+  });
+  svg.addEventListener('dblclick', () => { view = MAP_VIEW.slice(); setView(); });
 }
 
 // ---------------------------------------------------------------------
