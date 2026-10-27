@@ -161,7 +161,7 @@ document.getElementById('pdf-input').addEventListener('change', async (e) => {
   const input = document.getElementById('pdf-input');
   if (typeof pdfjsLib === 'undefined') {
     statusEl.innerHTML = '<div class="status err">Biblioteca PDF.js nu s-a putut încărca (posibil o problemă de rețea) — reîncarcă pagina și încearcă din nou.</div>';
-    setBanner('❌ Biblioteca PDF.js nu s-a putut încărca. Reîncarcă pagina (F5) și încearcă din nou.', 'err');
+    setBanner('Biblioteca PDF.js nu s-a putut încărca. Reîncarcă pagina (F5) și încearcă din nou.', 'err');
     input.value = '';
     return;
   }
@@ -185,19 +185,19 @@ document.getElementById('pdf-input').addEventListener('change', async (e) => {
 
   if (errors.length) {
     statusEl.innerHTML = `<div class="status err">Eroare la ${errors.length} fișier(e):<br>${errors.map(escapeHtml).join('<br>')}</div>`;
-    setBanner(`❌ Eroare la procesare:<br>${errors.map(escapeHtml).join('<br>')}`, 'err');
+    setBanner(`Eroare la procesare:<br>${errors.map(escapeHtml).join('<br>')}`, 'err');
   } else if (okCount > 0 && corpusCount === 0) {
     statusEl.innerHTML = `<div class="status err">${okCount} volum(e) citite (${entryCount} hükümuri în total), dar niciunul nu menționează Eflak/Boğdan/Erdel sau cetățile urmărite.</div>`;
     setBanner(
-      `⚠️ PDF-ul a fost citit cu succes (${entryCount} hükümuri identificate în total), dar <b>niciunul nu
+      `PDF-ul a fost citit cu succes (${entryCount} hükümuri identificate în total), dar <b>niciunul nu
        menționează Eflak, Boğdan, Erdel</b> sau cetățile urmărite (Kili, Akkerman, Bender, Hotin, Silistre) —
-       de aceea filele de mai jos rămân pe corpusul demonstrativ. Verifică fila „📕 Volum PDF” → „Căutare
+       de aceea filele de mai jos rămân pe corpusul demonstrativ. Verifică fila „Volum PDF” → „Căutare
        completă” pentru a răsfoi tot ce a fost extras din acest volum.`,
       'err'
     );
   } else if (okCount > 0) {
     statusEl.innerHTML = `<div class="status ok">${okCount} volum(e) încărcate — ${entryCount} hükümuri identificate (${corpusCount} despre Eflak/Boğdan/Erdel/cetăți).</div>`;
-    setBanner(`✅ ${okCount} volum(e) încărcate — ${corpusCount} hükümuri reale acum populează filele de mai jos (din ${entryCount} identificate în total). Vezi filele „🏠 Corpus”, „📄 Documente”, etc.`, 'ok');
+    setBanner(`${okCount} volum(e) încărcate — ${corpusCount} hükümuri reale acum populează filele de mai jos (din ${entryCount} identificate în total). Vezi filele „Corpus”, „Documente”, etc.`, 'ok');
     setTimeout(() => { document.getElementById('global-banner').style.display = 'none'; }, 8000);
   }
   renderAll();
@@ -212,7 +212,10 @@ document.querySelectorAll('nav.tabs button').forEach(btn => {
     document.querySelectorAll('nav.tabs button').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     btn.classList.add('active');
-    document.getElementById(btn.dataset.tab).classList.add('active');
+    const panel = document.getElementById(btn.dataset.tab);
+    panel.classList.add('active');
+    // Charts drawn while their panel was hidden keep a stale width.
+    panel.querySelectorAll('.js-plotly-plot').forEach(gd => Plotly.Plots.resize(gd));
   });
 });
 
@@ -233,11 +236,11 @@ function renderAll() {
 function updateScopeNote() {
   const note = document.getElementById('scope-note');
   if (hasPdf()) {
-    note.innerHTML = `✅ <b>${corpusEntries().length} hükümuri reale</b> extrase din ${state.volumes.length}
+    note.innerHTML = `<b>${corpusEntries().length} hükümuri reale</b> extrase din ${state.volumes.length}
       volum(e) — toate filele de mai jos arată acum datele reale (Eflak / Boğdan / Erdel +
       cetăți anexate), nu corpusul demonstrativ.`;
   } else {
-    note.innerHTML = `⚠️ Fără niciun volum încărcat, tabelele de mai jos arată un corpus
+    note.innerHTML = `Fără niciun volum încărcat, tabelele de mai jos arată un corpus
       demonstrativ fictiv (12 înregistrări „Exemplu demonstrativ”), doar pentru ilustrare.`;
   }
 }
@@ -813,7 +816,7 @@ function renderRetele() {
 }
 
 function renderEntryList(title, entries) {
-  let html = `<h4 style="margin-top:14px;">📌 ${title} — ${entries.length} hükümuri</h4>`;
+  let html = `<h4 style="margin-top:14px;">${title} — ${entries.length} hükümuri</h4>`;
   entries.slice(0, 20).forEach(e => {
     html += `<details class="entry-card"><summary>#${e.num} — ${e.recipient} (${e.volume}, p. ${e.page})</summary>
       <p><b>Rezumat:</b> ${e.summary}</p><div class="fulltext">${escapeHtml(e.fullText.slice(0, 1200))}</div></details>`;
