@@ -266,9 +266,12 @@ const UPDATES = {
 function showUpdate(key) {
   const u = UPDATES[key];
   if (!u) return;
-  document.querySelectorAll('.update-button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.update === key)));
-  const partial = /parțial|Disponibil/.test(u.status) ? ' partial' : '';
-  let html = `<h3>${u.title}</h3><span class="update-status${partial}">${u.status}</span>
+  document.querySelectorAll('.update-button').forEach(b => {
+    const on = b.dataset.update === key;
+    b.setAttribute('aria-pressed', String(on));
+    b.classList.toggle('active', on);
+  });
+  let html = `<h3>${u.title}</h3><span class="update-status">${u.status}</span>
     <div class="update-grid">
       <div><h4>Problema identificată</h4><p>${u.problem}</p></div>
       <div><h4>Soluția propusă</h4><p>${u.solution}</p></div>
