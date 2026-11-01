@@ -204,6 +204,87 @@ document.getElementById('pdf-input').addEventListener('change', async (e) => {
 });
 
 // ---------------------------------------------------------------------
+// Actualizări (proposed updates; static content, independent of any PDF)
+// ---------------------------------------------------------------------
+
+const UPDATES = {
+  evidence: {
+    title: 'Dovezi pentru clasificarea automată',
+    status: 'Propus',
+    problem: 'Aplicația spune că un hüküm menționează o cetate sau aparține unei teme, dar nu arată de ce. Clasificarea se face prin căutarea unor cuvinte-cheie, iar un cuvânt scurt poate apărea în alte cuvinte.',
+    solution: 'Pentru fiecare atribuire, aplicația păstrează termenul găsit și fragmentul din text în care apare, îl evidențiază în fișa hükümului și arată dacă potrivirea a fost pe cuvânt întreg sau parțială.',
+    effect: 'Cercetătorul poate verifica o atribuire în câteva secunde, iar potrivirile greșite ies la iveală înainte să ajungă în cifre.',
+    example: '<strong>Exemplu din volumul 3.</strong> Numărul hükümurilor despre Kili a coborât de la 88 la 7 după ce am observat, tocmai cu aceste fragmente, că „kili” era găsit în <em>kilise</em> (biserică), <em>Kırkkilise</em> (oraș din Tracia), <em>Kilis</em> și chiar în <em>kılıç</em> (sabie). Din același motiv, corpusul real a scăzut de la 258 la 185 de hükümuri. Termenii „ilhak” și „himaye” au fost scoși din tema Anexare / Istimalet pentru că apăreau în sensuri fără legătură cu anexarea.',
+  },
+  annotation: {
+    title: 'Adnotare și corectare istorică',
+    status: 'Propus',
+    problem: 'Extragerea automată este euristică și nu a fost validată filologic. Fiecare eroare descoperită azi se corectează doar în codul aplicației, nu de către cercetător.',
+    solution: 'Pentru fiecare hüküm, cercetătorul poate confirma sau respinge regiunea, cetatea și tema atribuite și poate adăuga una lipsă, cu o notă scurtă. Corecțiile se păstrează în browser și se pot exporta ca fișier JSON sau CSV, iar cifrele de pe hartă și din grafice se recalculează din datele corectate.',
+    effect: 'Cifrele publicate pornesc de la atribuiri verificate de om, iar diferența dintre extragerea automată și versiunea corectată poate fi raportată ca măsură a acurateței.',
+  },
+  names: {
+    title: 'Registru de nume istorice',
+    status: 'Implementat parțial',
+    problem: 'Același loc apare sub mai multe nume și grafii, iar unele nume se confundă cu alte cuvinte. Listele de termeni sunt scrise direct în cod.',
+    solution: 'Un registru separat, citit de motor, cu variantele fiecărui loc (de exemplu Kili, Chilia, Kilia, Licostomo; Akkerman, Akkirman, Cetatea Albă, Bielogrod; Bender, Tighina; Hotin, Khotyn; Eflak, Țara Românească; Boğdan, Moldova), perioada și limba fiecărei forme, plus reguli de excludere pentru omonime (Kili față de Kilis și Kırkkilise).',
+    effect: 'Căutările găsesc un loc indiferent de numele sub care apare, iar nume noi se adaugă fără modificarea codului. Registrul poate fi publicat ca resursă separată.',
+    example: '<strong>Ce există deja.</strong> Motorul acceptă variante de diacritice și vocale lungi (â, î, û), iar pentru Kili folosește regula „cuvânt întreg”. Registrul în sine, cu perioade și limbi, nu există încă.',
+  },
+  collaboration: {
+    title: 'Verificare colaborativă',
+    status: 'Propus',
+    problem: 'Site-ul este static și rulează doar în browser, deci nu are server în care mai mulți cercetători să-și păstreze corecțiile. Verificarea rămâne munca unei singure persoane.',
+    solution: 'Primul pas, fără server: fiecare cercetător exportă corecțiile ca fișier, iar aplicația poate importa și combina mai multe astfel de fișiere, arătând unde doi cercetători nu sunt de acord. Un pas ulterior ar putea folosi un spațiu comun, cu conturi.',
+    effect: 'Verificarea poate fi împărțită pe volume, iar dezacordurile dintre cercetători devin vizibile și se pot discuta, în loc să rămână ascunse în cifre.',
+  },
+  history: {
+    title: 'Istoricul modificărilor',
+    status: 'Disponibil în depozitul public',
+    problem: 'Cifrele din aplicație se schimbă când se corectează motorul (de exemplu 258 devine 185), iar cine citează un rezultat trebuie să știe cu ce versiune a fost obținut.',
+    solution: 'Aplicația arată versiunea motorului și o înscrie în orice export. Istoricul complet este deja public, cu data fiecărei modificări, în depozitul proiectului.',
+    effect: 'Un rezultat citat poate fi reprodus și comparat cu versiunile următoare.',
+    timeline: [
+      ['9–11 aug. 2026', 'Prima versiune (Streamlit) și traducerea opțională în română.'],
+      ['31 aug. 2026', 'Versiune statică pentru GitHub Pages: motorul de analiză rescris în JavaScript, extragerea PDF în browser, PDF.js găzduit local, traducere prin Puter.js, afișarea textului otoman pe pergament.'],
+      ['11 sept. 2026', 'Zoom și deplasare pe grafice, animații, rețele mai mari cu noduri mutabile, axe cu numere întregi.'],
+      ['21 sept. 2026', 'Tema Anexare / Istimalet; potrivire corectă pentru vocalele lungi î și û; „ilhak” și „himaye” excluse.'],
+      ['7 oct. 2026', 'Hărți istorice (Moldova în 1483, harta lui Cantelli da Vignola din 1686) legate de volumul încărcat; corectarea numărului pentru Kili (88 devine 7).'],
+      ['27 oct. 2026', 'Redesenarea paginii și 37 de teste automate pentru motor.'],
+    ],
+    link: 'https://github.com/Herodot91/muhimme-defteri/commits/main',
+  },
+  future: {
+    title: 'Dezvoltarea viitoare',
+    status: 'Plan',
+    problem: 'Testele de până acum au folosit un singur volum (volumul 3). Nu știm cât de bine se potrivesc regulile pe celelalte volume sau pe alte perioade.',
+    solution: 'Pași în ordinea priorității: (1) un eșantion de hükümuri verificate de mână, cu care să se măsoare precizia și acoperirea pentru fiecare regiune, cetate și temă; (2) rularea pe mai multe volume și compararea lor; (3) un registru de nume și o listă de excluderi construite pe baza erorilor găsite; (4) straturi de hartă pentru mai multe perioade; (5) mai multe teste automate pe fragmente reale din fiecare volum.',
+    effect: 'Concluziile despre Eflak, Boğdan și Erdel pot fi susținute cu o acuratețe măsurată, nu doar cu cifre brute.',
+  },
+};
+
+function showUpdate(key) {
+  const u = UPDATES[key];
+  if (!u) return;
+  document.querySelectorAll('.update-button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.update === key)));
+  const partial = /parțial|Disponibil/.test(u.status) ? ' partial' : '';
+  let html = `<h3>${u.title}</h3><span class="update-status${partial}">${u.status}</span>
+    <div class="update-grid">
+      <div><h4>Problema identificată</h4><p>${u.problem}</p></div>
+      <div><h4>Soluția propusă</h4><p>${u.solution}</p></div>
+      <div><h4>Efect asupra cercetării</h4><p>${u.effect}</p></div>
+    </div>`;
+  if (u.example) html += `<div class="update-example">${u.example}</div>`;
+  if (u.timeline) {
+    html += '<ul class="update-timeline">' + u.timeline.map(([d, t]) => `<li><time>${d}</time><span>${t}</span></li>`).join('') + '</ul>';
+    if (u.link) html += `<p style="margin-top:14px;"><a href="${u.link}" target="_blank" rel="noopener">Istoricul complet în depozitul proiectului</a></p>`;
+  }
+  document.getElementById('update-detail').innerHTML = html;
+}
+
+document.querySelectorAll('.update-button').forEach(b => b.addEventListener('click', () => showUpdate(b.dataset.update)));
+
+// ---------------------------------------------------------------------
 // Tabs
 // ---------------------------------------------------------------------
 
