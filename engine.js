@@ -29,26 +29,108 @@ function findFlexible(term, text) {
 // These terms must be a whole word and use a strict dotted i.
 const WHOLE_WORD_TERMS = new Set(['kili']);
 
-function matchesTerm(term, text) {
-  if (!WHOLE_WORD_TERMS.has(term)) return findFlexible(term, text);
+function termRegex(term) {
+  if (!WHOLE_WORD_TERMS.has(term)) return new RegExp(flexiblePattern(term), 'i');
   const body = term.split('').map(ch => ch === 'i' ? '[iîİ]' : escapeRegex(ch)).join('');
-  return new RegExp('(?<![\\p{L}])' + body + '(?![\\p{L}])', 'iu').test(text);
+  return new RegExp('(?<![\\p{L}])' + body + '(?![\\p{L}])', 'iu');
 }
 
-const REGION_TERMS = {
-  "Eflak (Țara Românească)": ["eflak"],
-  "Boğdan (Moldova)": ["bogdan"],
-  "Erdel (Ardeal / Transilvania)": ["erdel"],
-};
+function matchesTerm(term, text) {
+  return termRegex(term).test(text);
+}
 
-const FORTRESS_TERMS = {
-  "Kili (Chilia)": ["kili"],
-  "Akkerman (Cetatea Albă)": ["akkerman"],
-  "Yedikule": ["yedikule"],
-  "Bender (Tighina)": ["bender"],
-  "Hotin (Khotyn)": ["hotin"],
-  "Silistre": ["silistre"],
-};
+// First whole-word occurrence if there is one, otherwise the first occurrence.
+function findTermMatch(term, text) {
+  const re = termRegex(term);
+  const all = new RegExp(re.source, re.flags + 'g');
+  let first = null;
+  for (const m of text.matchAll(all)) {
+    const hit = { index: m.index, text: m[0] };
+    if (isWholeWord(text, hit.index, hit.text.length)) return hit;
+    if (!first) first = hit;
+  }
+  return first;
+}
+
+// True when the match is not glued to other letters (an inflected form such as
+// "Eflâk'e" still counts, because the apostrophe is not a letter).
+function isWholeWord(text, index, length) {
+  const before = text.slice(Math.max(0, index - 1), index);
+  const after = text.slice(index + length, index + length + 1);
+  const letter = /\p{L}/u;
+  return !(before && letter.test(before)) && !(after && letter.test(after));
+}
+
+const ENGINE_VERSION = '2026-11-02';
+
+// Register of historical names. `terms` are what the engine searches for;
+// `names` document the other forms of the same place; `exclude` records which
+// look-alike words must not match.
+const NAME_REGISTRY = [
+  { label: "Eflak (Țara Românească)", type: "region", terms: ["eflak"],
+    names: [
+      { form: "Eflâk", lang: "otomană", period: "" },
+      { form: "Țara Românească", lang: "română", period: "" },
+      { form: "Valachia", lang: "latină", period: "" },
+      { form: "Wallachia", lang: "engleză", period: "" },
+    ], exclude: "" },
+  { label: "Boğdan (Moldova)", type: "region", terms: ["bogdan"],
+    names: [
+      { form: "Boğdan", lang: "otomană", period: "" },
+      { form: "Moldova", lang: "română", period: "" },
+      { form: "Moldavia", lang: "latină", period: "" },
+    ], exclude: "" },
+  { label: "Erdel (Ardeal / Transilvania)", type: "region", terms: ["erdel"],
+    names: [
+      { form: "Erdel", lang: "otomană", period: "" },
+      { form: "Ardeal", lang: "română", period: "" },
+      { form: "Transilvania", lang: "latină", period: "" },
+      { form: "Siebenbürgen", lang: "germană", period: "" },
+    ], exclude: "" },
+  { label: "Kili (Chilia)", type: "fortress", terms: ["kili"],
+    names: [
+      { form: "Kili", lang: "otomană", period: "" },
+      { form: "Chilia / Chilia Nouă", lang: "română", period: "" },
+      { form: "Kilia", lang: "latină", period: "" },
+      { form: "Licostomo", lang: "italiană", period: "evul mediu" },
+    ], exclude: "Doar cuvânt întreg, cu i punctat: exclude kilise, Kırkkilise, Kilis, kılıç." },
+  { label: "Akkerman (Cetatea Albă)", type: "fortress", terms: ["akkerman", "akkirman"],
+    names: [
+      { form: "Akkerman", lang: "otomană", period: "" },
+      { form: "Akkirman", lang: "otomană (variantă din text)", period: "" },
+      { form: "Cetatea Albă", lang: "română", period: "" },
+      { form: "Bielogrod", lang: "slavă (pe harta din 1686)", period: "sec. XVII" },
+      { form: "Moncastro", lang: "italiană", period: "evul mediu" },
+    ], exclude: "" },
+  { label: "Yedikule", type: "fortress", terms: ["yedikule"],
+    names: [{ form: "Yedikule", lang: "otomană", period: "" }],
+    exclude: "Fortăreață din Istanbul; nu apare pe hărțile din aplicație." },
+  { label: "Bender (Tighina)", type: "fortress", terms: ["bender"],
+    names: [
+      { form: "Bender", lang: "otomană", period: "" },
+      { form: "Tighina", lang: "română", period: "" },
+      { form: "Bendery", lang: "rusă", period: "" },
+    ], exclude: "" },
+  { label: "Hotin (Khotyn)", type: "fortress", terms: ["hotin"],
+    names: [
+      { form: "Hotin", lang: "otomană / română", period: "" },
+      { form: "Khotyn", lang: "ucraineană", period: "" },
+      { form: "Chocim", lang: "poloneză", period: "" },
+    ], exclude: "" },
+  { label: "Silistre", type: "fortress", terms: ["silistre"],
+    names: [
+      { form: "Silistre", lang: "otomană", period: "" },
+      { form: "Silistra", lang: "română / bulgară", period: "" },
+      { form: "Dârstor", lang: "română (medievală)", period: "evul mediu" },
+    ], exclude: "" },
+];
+
+function termsByType(type) {
+  return Object.fromEntries(NAME_REGISTRY.filter(p => p.type === type).map(p => [p.label, p.terms]));
+}
+
+const REGION_TERMS = termsByType('region');
+const FORTRESS_TERMS = termsByType('fortress');
 
 const THEME_TERMS = {
   "Comerț": ["ticaret", "gumruk", "bac", "kervan", "tuccar", "bezirgan", "koyun", "davar"],
@@ -66,6 +148,30 @@ const THEME_TERMS = {
   // istimalet toward a newly conquered population.
   "Anexare / Istimalet": ["feth", "teshir", "istila", "istimalet"],
 };
+
+// Classifies a text and records the evidence for each label: the term that
+// matched, where, and whether it is a whole word. `extraTerms` maps a label to
+// additional search variants (already normalised with normalizeVariant).
+function classifyText(text, extraTerms) {
+  const extra = extraTerms || {};
+  const evidence = [];
+  const pick = (kind, table) => Object.entries(table).filter(([label, terms]) => {
+    for (const term of terms.concat(extra[label] || [])) {
+      const m = findTermMatch(term, text);
+      if (m) {
+        evidence.push({ kind, label, term, index: m.index, match: m.text, wholeWord: isWholeWord(text, m.index, m.text.length) });
+        return true;
+      }
+    }
+    return false;
+  }).map(([label]) => label);
+  return {
+    regions: pick('regions', REGION_TERMS),
+    fortresses: pick('fortresses', FORTRESS_TERMS),
+    themes: pick('themes', THEME_TERMS),
+    evidence,
+  };
+}
 
 const PERIOD_RE = /(\d{3,4})\s*[–\-]\s*(\d{3,4})\s*\/\s*(\d{4})\s*[–\-]\s*(\d{4})/;
 
@@ -146,9 +252,7 @@ function parseEntries(pages, volumeLabel) {
     }
 
     const textAll = summary + " " + rest.slice(0, 2500);
-    const regions = Object.entries(REGION_TERMS).filter(([, vs]) => vs.some(v => matchesTerm(v, textAll))).map(([n]) => n);
-    const fortresses = Object.entries(FORTRESS_TERMS).filter(([, vs]) => vs.some(v => matchesTerm(v, textAll))).map(([n]) => n);
-    const themes = Object.entries(THEME_TERMS).filter(([, vs]) => vs.some(v => matchesTerm(v, textAll))).map(([n]) => n);
+    const { regions, fortresses, themes } = classifyText(textAll);
 
     entries.push({
       volume: volumeLabel,
@@ -176,4 +280,121 @@ function attachYears(entries, period) {
     }
   }
   return entries;
+}
+
+// ---------------------------------------------------------------------
+// Review logic: researcher verdicts on the automatic labels (no DOM here,
+// so it can be tested on its own).
+// ---------------------------------------------------------------------
+
+const LABEL_KINDS = { r: 'regions', f: 'fortresses', t: 'themes' };
+
+function allLabelIds() {
+  const ids = new Set();
+  [['r', REGION_TERMS], ['f', FORTRESS_TERMS], ['t', THEME_TERMS]].forEach(([p, table]) => {
+    Object.keys(table).forEach(label => ids.add(p + ':' + label));
+  });
+  return ids;
+}
+
+// Automatic labels, minus the ones the researcher rejected, plus the ones added.
+function effectiveLabels(auto, ann) {
+  const verdicts = (ann && ann.verdicts) || {};
+  const added = (ann && ann.added) || {};
+  const out = {};
+  Object.entries(LABEL_KINDS).forEach(([p, kind]) => {
+    const kept = (auto[kind] || []).filter(l => verdicts[p + ':' + l] !== 'no');
+    const extra = (added[kind] || []).filter(l => !kept.includes(l));
+    out[kind] = kept.concat(extra);
+  });
+  return out;
+}
+
+// A place-name variant typed by the user: ASCII letters and spaces only.
+function normalizeVariant(raw) {
+  const map = { 'ş': 's', 'ğ': 'g', 'ı': 'i', 'ü': 'u', 'ö': 'o', 'ç': 'c', 'â': 'a', 'î': 'i', 'û': 'u', 'ê': 'e', 'ă': 'a', 'ș': 's', 'ț': 't' };
+  const t = String(raw || '').toLowerCase().trim().replace(/[şğıüöçâîûêășț]/g, ch => map[ch]);
+  return /^[a-z][a-z ]{2,39}$/.test(t) ? t.replace(/\s+/g, ' ') : null;
+}
+
+// Cleans annotations coming from outside (imported files): known labels only.
+function sanitizeAnnotations(items) {
+  const known = allLabelIds();
+  const out = {};
+  if (!items || typeof items !== 'object') return out;
+  let n = 0;
+  for (const [key, ann] of Object.entries(items)) {
+    if (n >= 20000 || key.length > 300 || key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
+    if (!ann || typeof ann !== 'object') continue;
+    const verdicts = {};
+    for (const [id, v] of Object.entries(ann.verdicts || {})) {
+      if (known.has(id) && (v === 'ok' || v === 'no')) verdicts[id] = v;
+    }
+    const added = { regions: [], fortresses: [], themes: [] };
+    for (const [p, kind] of Object.entries(LABEL_KINDS)) {
+      const list = ann.added && Array.isArray(ann.added[kind]) ? ann.added[kind] : [];
+      for (const l of list) {
+        if (typeof l === 'string' && known.has(p + ':' + l) && !added[kind].includes(l)) added[kind].push(l);
+      }
+    }
+    const note = typeof ann.note === 'string' ? ann.note.slice(0, 500) : '';
+    if (Object.keys(verdicts).length || added.regions.length || added.fortresses.length || added.themes.length || note) {
+      out[key] = { verdicts, added, note };
+      n++;
+    }
+  }
+  return out;
+}
+
+// "r:Label" -> 'ok' | 'no' | 'add'
+function verdictMap(ann) {
+  const m = {};
+  Object.entries((ann && ann.verdicts) || {}).forEach(([id, v]) => { m[id] = v; });
+  Object.entries(LABEL_KINDS).forEach(([p, kind]) => {
+    ((ann && ann.added && ann.added[kind]) || []).forEach(l => { m[p + ':' + l] = 'add'; });
+  });
+  return m;
+}
+
+// sets: [{ name, items }]. Returns how many labels were judged by at least two
+// people, how many of those agree, and the disagreements (verdicts aligned with sets).
+function compareAnnotators(sets) {
+  const byItem = new Map();
+  sets.forEach((set, i) => {
+    Object.entries(set.items || {}).forEach(([key, ann]) => {
+      Object.entries(verdictMap(ann)).forEach(([id, v]) => {
+        const k = key + '||' + id;
+        if (!byItem.has(k)) byItem.set(k, { key, id, verdicts: sets.map(() => null) });
+        byItem.get(k).verdicts[i] = v;
+      });
+    });
+  });
+  let judged = 0, agree = 0;
+  const disagreements = [];
+  byItem.forEach(item => {
+    const vs = item.verdicts.filter(v => v);
+    if (vs.length < 2) return;
+    judged++;
+    const yes = vs.filter(v => v !== 'no').length;
+    if (yes === 0 || yes === vs.length) agree++;
+    else disagreements.push(item);
+  });
+  return { judged, agree, disagreements };
+}
+
+// Per label: confirmed, rejected and added counts, with precision and a recall estimate.
+function accuracyByLabel(items) {
+  const rows = new Map();
+  const row = id => { if (!rows.has(id)) rows.set(id, { id, ok: 0, no: 0, added: 0 }); return rows.get(id); };
+  Object.values(items || {}).forEach(ann => {
+    Object.entries(verdictMap(ann)).forEach(([id, v]) => {
+      const r = row(id);
+      if (v === 'ok') r.ok++; else if (v === 'no') r.no++; else r.added++;
+    });
+  });
+  return [...rows.values()].map(r => ({
+    ...r,
+    precision: r.ok + r.no ? r.ok / (r.ok + r.no) : null,
+    recall: r.ok + r.added ? r.ok / (r.ok + r.added) : null,
+  })).sort((a, b) => a.id.localeCompare(b.id));
 }

@@ -251,6 +251,70 @@
       grid-template-columns: 1fr;
     }
   }
+  /* ---- review tools (updates.js) ---- */
+  .update-about { margin: 6px 0 18px; }
+  .update-about summary { cursor: pointer; font-size: 14px; font-weight: 600; color: var(--accent); min-height: 44px; display: flex; align-items: center; }
+  .update-tool { margin-top: 8px; }
+  .rv-help, .rv-empty, .rv-none { font-size: 14px; line-height: 1.6; color: var(--muted); margin: 0 0 12px; }
+  .rv-warn { font-size: 14px; color: #5e1d16; background: #f7e0db; border: 1px solid #c47a6e; border-radius: 8px; padding: 8px 12px; }
+  .rv-msg { min-height: 20px; font-size: 14px; margin: 6px 0 10px; }
+  .rv-sub { margin: 22px 0 8px; font-family: var(--serif); font-size: 20px; font-weight: 500; color: var(--ink); }
+  .rv-meta { font-size: 12.5px; color: var(--muted); font-weight: 400; }
+  .rv-controls { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin: 12px 0; }
+  .rv-controls label { font-size: 14px; display: inline-flex; gap: 8px; align-items: center; color: #4a4034; }
+  .rv-controls input[type=number] { width: 90px; font-family: inherit; font-size: 14px; min-height: 44px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--card); }
+  .rv-check input { width: 20px; height: 20px; }
+  .rv-file input { font-size: 13px; max-width: 260px; }
+  .rv-counters { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 14px; margin: 4px 0 10px; }
+  .rv-btn { font-size: 14px; min-height: 44px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--card); color: var(--ink); cursor: pointer; }
+  .rv-btn:hover { border-color: var(--accent); }
+  .rv-btn.ok.on { background: var(--accent-2); border-color: var(--accent-2); color: #fff; }
+  .rv-btn.no.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .rv-btn.danger { border-color: #c47a6e; color: #5e1d16; }
+  .rv-card { background: #fbf7ec; border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; }
+  .rv-card-head { font-size: 15px; margin-bottom: 4px; }
+  .rv-summary { margin: 0 0 8px; font-size: 14px; color: var(--muted); line-height: 1.5; }
+  .rv-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  .rv-item { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--card); }
+  .rv-item.rejected { opacity: 0.6; }
+  .rv-item.rejected .rv-snippet { text-decoration: line-through; }
+  .rv-item-head { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; font-size: 14px; }
+  .rv-term { font-size: 13px; color: var(--muted); }
+  .rv-tag { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 10px; }
+  .rv-tag.whole { background: #e3ebd9; color: #26391c; }
+  .rv-tag.partial { background: #f6e2b8; color: #5a3d00; }
+  .rv-verdict { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 10px; color: #fff; }
+  .rv-verdict.ok { background: var(--accent-2); }
+  .rv-verdict.no { background: var(--accent); }
+  .rv-snippet { margin-top: 6px; font-family: var(--serif); font-size: 15.5px; line-height: 1.6; color: #2b1f0f; }
+  .rv-snippet mark { background: rgba(138, 47, 37, 0.22); color: inherit; padding: 0 2px; border-radius: 2px; }
+  .rv-actions { display: flex; gap: 8px; margin-top: 8px; }
+  .rv-inline { margin: 10px 0; }
+  .rv-inline > b { font-size: 13px; letter-spacing: 0.04em; color: var(--accent); }
+  .rv-extra { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line); display: flex; flex-direction: column; gap: 10px; font-size: 14px; }
+  .rv-add-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .rv-note-label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+  .rv-note { font-family: inherit; font-size: 14px; padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--card); resize: vertical; }
+  .rv-chip { display: inline-flex; align-items: center; gap: 4px; background: #e6dcc2; border-radius: 14px; padding: 2px 4px 2px 10px; margin: 0 6px 6px 0; font-size: 13px; }
+  .rv-x { min-width: 28px; min-height: 28px; border: 0; background: none; font-size: 18px; line-height: 1; cursor: pointer; color: var(--ink); border-radius: 50%; }
+  .rv-x:hover { background: rgba(0,0,0,0.08); }
+  .rv-table-wrap { overflow-x: auto; max-width: 100%; }
+  .rv-table { width: 100%; border-collapse: collapse; font-size: 14px; background: var(--card); border: 1px solid var(--line); }
+  .rv-table th, .rv-table td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  .rv-table th { background: #e6dcc2; font-weight: 600; }
+  .rv-table code { background: #efe6cf; padding: 1px 6px; border-radius: 4px; font-size: 13px; }
+  .rv-total td { font-weight: 600; background: #f1e9d3; }
+  .rv-names { list-style: none; margin: 0; padding: 0; }
+  .rv-names li { margin-bottom: 2px; font-size: 14px; }
+  .rv-variants { margin: 8px 0 4px; }
+  .rv-variant-form { display: flex; gap: 6px; margin-top: 8px; }
+  .rv-variant-form input { min-width: 0; width: 140px; }
+  .rv-list { padding-left: 20px; margin: 0 0 12px; font-size: 14px; }
+  .rv-list li { margin-bottom: 6px; }
+  .rv-version { font-size: 16px; margin: 0 0 6px; }
+  .rv-roadmap { padding-left: 20px; margin: 8px 0 0; font-size: 14.5px; line-height: 1.6; }
+  .rv-roadmap li { margin-bottom: 6px; }
+
   .status { font-size: 0.85rem; padding: 6px 0; }
   .status.ok { color: var(--accent-2); }
   .status.err { color: var(--accent); }
@@ -389,10 +453,10 @@
     <section id="actualizari" class="panel">
       <div class="updates-header">
         <p class="subtitle">Rezultatele cercetării</p>
-        <h2>Actualizări propuse pentru Mühimme Defterleri</h2>
+        <h2>Actualizări pentru Mühimme Defterleri</h2>
         <p>
-          Selectează o actualizare pentru a vedea problema identificată,
-          soluția propusă și efectul asupra cercetării istorice.
+          Selectează o actualizare ca s-o folosești pe volumul încărcat: dovezi pentru
+          etichete, corecții, registru de nume, comparare între cercetători și măsurarea acurateței.
         </p>
       </div>
 
@@ -458,5 +522,6 @@
 
 <script src="engine.js"></script>
 <script src="app.js"></script>
+<script src="updates.js"></script>
 </body>
 </html>
