@@ -78,6 +78,12 @@ function labelGroups() {
 }
 
 function entryKey(e) { return e.volume + '#' + e.num + '#' + e.page; }
+const ridMap = new Map();
+let ridCounter = 0;
+function entryRid(e) {
+  if (e.rid === undefined) { e.rid = ++ridCounter; ridMap.set(e.rid, e); }
+  return e.rid;
+}
 function textFor(e) { return e.summary + ' ' + e.fullText.slice(0, 2500); }
 function hasVolume() { return state.volumes.length > 0; }
 
@@ -114,8 +120,16 @@ let renderTimer = null;
 function commitReview(reclassify) {
   persistReview();
   applyReview(!!reclassify);
+  renderEffects();
   clearTimeout(renderTimer);
-  renderTimer = setTimeout(renderAll, 350);
+  renderTimer = setTimeout(() => {
+    const open = [...document.querySelectorAll('details.entry-card[open][data-rid]')].map(d => d.dataset.rid);
+    renderAll();
+    open.forEach(rid => {
+      const d = document.querySelector('details.entry-card[data-rid="' + rid + '"]');
+      if (d) d.open = true;
+    });
+  }, 350);
 }
 
 function annotation(key, create) {
@@ -138,6 +152,14 @@ function setVerdict(key, id, verdict) {
   else a.verdicts[id] = verdict;
   pruneAnnotation(key);
 }
+
+function setVerdictExact(key, id, verdict) {
+  if (verdict) annotation(key, true).verdicts[id] = verdict;
+  else if (annotation(key, false)) delete annotation(key, false).verdicts[id];
+  pruneAnnotation(key);
+}
+
+let lastAction = null;
 
 function addLabel(key, id) {
   const a = annotation(key, true);
@@ -207,12 +229,29 @@ function evidenceItemHtml(e, ev, actions) {
     <div class="rv-snippet">${snippetHtml(textFor(e), ev)}</div>${buttons}</li>`;
 }
 
-// Compact "why was this labelled" block for the entry cards on other tabs.
+// "Why was this labelled" block with Corect / Greșit buttons, used directly on
+// the map cards and the Documente card. It lists the automatic labels, so a
+// rejected one stays visible and can be restored.
 function evidenceHtml(e, kinds) {
-  const evs = evidenceFor(e).filter(ev => (!kinds || kinds.includes(ev.kind)) && (e[ev.kind] || []).includes(ev.label));
+  const evs = evidenceFor(e).filter(ev => !kinds || kinds.includes(ev.kind));
   if (!evs.length) return '';
-  return `<div class="rv-inline"><b>Dovezi pentru etichete</b><ul class="rv-items">${evs.map(ev => evidenceItemHtml(e, ev, false)).join('')}</ul></div>`;
+  return `<div class="rv-inline" data-rid="${entryRid(e)}" data-kinds="${escAttr((kinds || []).join(','))}"><b>Dovezi pentru etichete — verifică direct aici</b><ul class="rv-items">${evs.map(ev => evidenceItemHtml(e, ev, true)).join('')}</ul></div>`;
 }
+
+document.addEventListener('click', ev => {
+  const btn = ev.target.closest('.rv-inline .rv-btn[data-act]');
+  if (!btn) return;
+  const box = btn.closest('.rv-inline');
+  const e = ridMap.get(parseInt(box.dataset.rid, 10));
+  if (!e || (btn.dataset.act !== 'ok' && btn.dataset.act !== 'no')) return;
+  const key = entryKey(e);
+  const before = review.annotations[key];
+  const prev = (before && before.verdicts[btn.dataset.id]) || null;
+  setVerdict(key, btn.dataset.id, btn.dataset.act);
+  lastAction = { rid: e.rid, key, id: btn.dataset.id, prev, verdict: btn.dataset.act === prev ? null : btn.dataset.act };
+  commitReview(false);
+  box.outerHTML = evidenceHtml(e, box.dataset.kinds ? box.dataset.kinds.split(',') : null);
+});
 
 // ---------------------------------------------------------------------
 // Review list (tools 01, 02 and the sample in 06)
@@ -697,6 +736,142 @@ function renderFutureTool(box) {
 }
 
 // ---------------------------------------------------------------------
+// Effect of the updates, shown on the main page
+// ---------------------------------------------------------------------
+
+function naiveLabels(e) {
+  if (!e.naive) e.naive = classifyNaive(textFor(e));
+  return e.naive;
+}
+
+function placeCounts(label, type) {
+  const kind = type === 'region' ? 'regions' : 'fortresses';
+  const all = allEntries();
+  return {
+    simple: all.filter(e => naiveLabels(e)[kind].includes(label)).length,
+    engine: all.filter(e => e.auto && e.auto[kind].includes(label)).length,
+    final: all.filter(e => e[kind].includes(label)).length,
+  };
+}
+
+function corpusCounts() {
+  const all = allEntries();
+  return {
+    simple: all.filter(e => { const n = naiveLabels(e); return n.regions.length || n.fortresses.length; }).length,
+    engine: all.filter(e => e.auto && (e.auto.regions.length || e.auto.fortresses.length)).length,
+    final: all.filter(e => e.regions.length || e.fortresses.length).length,
+  };
+}
+
+function deltaHtml(from, to) {
+  const d = to - from;
+  if (d === 0) return '<span class="fx-delta same">fără schimbare</span>';
+  return `<span class="fx-delta ${d < 0 ? 'down' : 'up'}">${d > 0 ? '+' : '−'}${Math.abs(d)} față de căutarea simplă</span>`;
+}
+
+function effectLine(label) {
+  const c = placeCounts(label, REGION_TERMS[label] ? 'region' : 'fortress');
+  return `<p class="rv-effect-line">În tot volumul încărcat: căutare simplă <b>${c.simple}</b> → cu dovezi și registru <b>${c.engine}</b> → după corecții <b>${c.final}</b></p>`;
+}
+
+function reviewBadge(e) {
+  const a = review.annotations[entryKey(e)];
+  const parts = [];
+  if (a) {
+    let ok = 0, no = 0;
+    Object.values(a.verdicts).forEach(v => { if (v === 'ok') ok++; else no++; });
+    const added = a.added.regions.length + a.added.fortresses.length + a.added.themes.length;
+    if (ok) parts.push(`<span class="rv-verdict ok">${ok} confirmat</span>`);
+    if (no) parts.push(`<span class="rv-verdict no">${no} respins</span>`);
+    if (added) parts.push(`<span class="rv-tag whole">${added} adăugat</span>`);
+  }
+  const unreviewedPartial = evidenceFor(e).some(ev => (ev.kind === 'regions' || ev.kind === 'fortresses') && !ev.wholeWord && !(a && a.verdicts[labelId(ev.kind, ev.label)]));
+  if (unreviewedPartial) parts.push('<span class="rv-tag partial">de verificat</span>');
+  return parts.join(' ') || '<span class="rv-meta">—</span>';
+}
+
+function openTool(key, label) {
+  if (label !== undefined) {
+    rvState.label = label; rvState.limit = 30; rvState.partialOnly = false;
+    rvState.unreviewedOnly = false; rvState.q = ''; rvState.sample = null;
+  }
+  document.querySelector('nav.tabs button[data-tab="actualizari"]').click();
+  showUpdate(key);
+  document.getElementById('update-detail').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function lastActionHtml() {
+  if (!lastAction) return '';
+  const e = ridMap.get(lastAction.rid);
+  const what = lastAction.verdict === 'ok' ? 'confirmat' : lastAction.verdict === 'no' ? 'respins' : 'verdict șters';
+  return `<p class="fx-last" role="status">Ultima verificare: <b>${esc(labelOfId(lastAction.id))}</b> ${what}${e ? ' la hükümul #' + esc(e.num) : ''}.
+    <button type="button" class="fx-link" data-fx-undo>Anulează</button></p>`;
+}
+
+function renderEffects() {
+  const box = document.getElementById('effects');
+  if (!box) return;
+  if (!hasVolume()) {
+    box.innerHTML = `<div class="fx-head"><h2>Efectul actualizărilor asupra mențiunilor</h2></div>
+      <p class="fx-empty">Încarcă un volum PDF și vezi aici, pentru fiecare regiune și cetate, cum se schimbă numărul de mențiuni între căutarea simplă din prima versiune, motorul actual și corecțiile tale.</p>`;
+    return;
+  }
+  const rows = NAME_REGISTRY.map(p => ({ p, c: placeCounts(p.label, p.type) }))
+    .filter(r => !(r.p.label === 'Yedikule' && !r.c.simple && !r.c.engine && !r.c.final));
+  const max = Math.max(1, ...rows.map(r => r.c.simple));
+  const total = corpusCounts();
+  let partial = 0, items = 0;
+  allEntries().forEach(e => { if (!(e.auto && (e.auto.regions.length || e.auto.fortresses.length))) return;
+    evidenceFor(e).forEach(ev => { if (ev.kind === 'themes') return; items++; if (!ev.wholeWord) partial++; }); });
+  const t = reviewTotals();
+  const bar = (n, cls) => `<span class="fx-bar ${cls}" style="width:${Math.round(100 * n / max)}%"></span>`;
+  box.innerHTML = `
+    <div class="fx-head">
+      <h2>Efectul actualizărilor asupra mențiunilor</h2>
+      <span class="fx-version">motor ${esc(ENGINE_VERSION)}</span>
+    </div>
+    <p class="fx-lead">Aceleași hükümuri, numărate în trei moduri: <b>căutarea simplă</b> din prima versiune (fragment de cuvânt, fără excluderi), <b>motorul actual</b> (cuvânt întreg pentru nume scurte, dovezi, registru de nume) și <b>după corecțiile tale</b>.</p>
+    <div class="fx-table-wrap"><table class="fx-table">
+      <thead><tr><th>Loc</th><th>Căutare simplă</th><th>Motor actual</th><th>După corecții</th><th>Efect</th><th></th></tr></thead>
+      <tbody>
+        ${rows.map(({ p, c }) => `<tr>
+          <th scope="row">${esc(p.label)}</th>
+          <td><span class="fx-num">${c.simple}</span>${bar(c.simple, 'simple')}</td>
+          <td><span class="fx-num">${c.engine}</span>${bar(c.engine, 'engine')}</td>
+          <td><span class="fx-num">${c.final}</span>${bar(c.final, 'final')}</td>
+          <td>${deltaHtml(c.simple, c.final)}</td>
+          <td><button type="button" class="fx-link" data-fx-open="${escAttr(labelId(p.type === 'region' ? 'regions' : 'fortresses', p.label))}">Dovezi</button></td>
+        </tr>`).join('')}
+        <tr class="fx-total">
+          <th scope="row">Hükümuri în corpus</th>
+          <td><span class="fx-num">${total.simple}</span></td><td><span class="fx-num">${total.engine}</span></td><td><span class="fx-num">${total.final}</span></td>
+          <td>${deltaHtml(total.simple, total.final)}</td><td></td>
+        </tr>
+      </tbody></table></div>
+    <p class="fx-foot">
+      <span><b>${items ? Math.round(100 * partial / items) : 0}%</b> din potrivirile de regiuni și cetăți sunt parțiale (de verificat)</span>
+      <span><b>${t.ok}</b> confirmate · <b>${t.no}</b> respinse · <b>${t.added}</b> adăugate</span>
+      <span><b>${review.colleagues.length}</b> fișiere de la colegi</span>
+      <button type="button" class="fx-link" data-fx-tool="annotation">Verifică hükümuri</button>
+      <button type="button" class="fx-link" data-fx-tool="future">Eșantion și acuratețe</button>
+      <button type="button" class="fx-link" data-fx-tool="names">Registru de nume</button>
+    </p>
+    ${lastActionHtml()}`;
+}
+
+document.addEventListener('click', ev => {
+  const open = ev.target.closest('[data-fx-open]');
+  if (open) { openTool('evidence', open.dataset.fxOpen); return; }
+  const tool = ev.target.closest('[data-fx-tool]');
+  if (tool) { openTool(tool.dataset.fxTool); return; }
+  if (ev.target.closest('[data-fx-undo]') && lastAction) {
+    setVerdictExact(lastAction.key, lastAction.id, lastAction.prev);
+    lastAction = null;
+    commitReview(false);
+  }
+});
+
+// ---------------------------------------------------------------------
 // The Actualizări tab
 // ---------------------------------------------------------------------
 
@@ -778,3 +953,5 @@ document.querySelectorAll('.update-button').forEach(b => b.addEventListener('cli
 
 // Corrections saved in an earlier visit apply as soon as a volume is loaded
 // (the upload handler calls applyReview); nothing to do before then.
+
+renderEffects();

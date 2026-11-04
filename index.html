@@ -315,6 +315,36 @@
   .rv-roadmap { padding-left: 20px; margin: 8px 0 0; font-size: 14.5px; line-height: 1.6; }
   .rv-roadmap li { margin-bottom: 6px; }
 
+  /* ---- effect of the updates, on the main page ---- */
+  .effects { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 22px 26px; margin: 0 0 8px; }
+  .fx-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; }
+  .fx-head h2 { margin: 0; font-family: var(--serif); font-weight: 500; font-size: 26px; line-height: 1.15; }
+  .fx-version { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .fx-lead, .fx-empty { margin: 8px 0 14px; font-size: 14.5px; line-height: 1.6; color: #4a4034; max-width: 860px; }
+  .fx-empty { margin-bottom: 0; }
+  .fx-table-wrap { overflow-x: auto; max-width: 100%; }
+  .fx-table { width: 100%; border-collapse: collapse; font-size: 14px; background: transparent; border: 0; }
+  .fx-table th, .fx-table td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; background: transparent; }
+  .fx-table thead th { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); background: transparent; }
+  .fx-table tbody th { font-weight: 600; white-space: nowrap; }
+  .fx-table td { min-width: 110px; }
+  .fx-num { display: inline-block; min-width: 28px; font-family: var(--serif); font-size: 20px; font-weight: 500; }
+  .fx-bar { display: block; height: 5px; border-radius: 3px; margin-top: 3px; min-width: 2px; }
+  .fx-bar.simple { background: #b8a982; }
+  .fx-bar.engine { background: var(--blue); }
+  .fx-bar.final { background: var(--accent); }
+  .fx-delta { display: inline-block; font-size: 12.5px; font-weight: 600; padding: 2px 8px; border-radius: 10px; }
+  .fx-delta.same { background: #e6dcc2; color: var(--muted); }
+  .fx-delta.down { background: #f7e0db; color: #5e1d16; }
+  .fx-delta.up { background: #e3ebd9; color: #26391c; }
+  .fx-total th, .fx-total td { background: #f1e9d3; border-bottom: 0; }
+  .fx-link { font-size: 13px; min-height: 44px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--card); color: var(--accent); font-weight: 600; cursor: pointer; }
+  .fx-link:hover { border-color: var(--accent); }
+  .fx-foot { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; margin: 14px 0 0; font-size: 14px; color: #4a4034; }
+  .fx-last { margin: 10px 0 0; font-size: 14px; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; color: #4a4034; }
+  .rv-effect-line { margin: 6px 0 0; font-size: 14px; color: #4a4034; }
+  @media (max-width: 700px) { .effects { padding: 18px 16px; } .fx-head h2 { font-size: 22px; } }
+
   .status { font-size: 0.85rem; padding: 6px 0; }
   .status.ok { color: var(--accent-2); }
   .status.err { color: var(--accent); }
@@ -381,6 +411,8 @@
         ilustrare.</p>
       </div>
     </header>
+
+    <section id="effects" class="effects" aria-label="Efectul actualizărilor asupra mențiunilor"></section>
 
     <nav class="tabs" aria-label="Secțiuni">
       <button data-tab="corpus" class="active">Corpus</button>

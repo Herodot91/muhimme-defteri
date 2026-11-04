@@ -232,6 +232,7 @@ function renderAll() {
   renderDocumenteFilters();
   renderDocumente();
   renderVolum();
+  if (typeof renderEffects === 'function') renderEffects();
 }
 
 function updateScopeNote() {
@@ -537,7 +538,7 @@ function renderMapDetail() {
     return;
   }
   const list = mapEntriesFor(name, mapEntries());
-  box.innerHTML = `<div class="doc-detail"><p style="margin-top:0;"><i>${MAP_NOTES[name] || ''}</i></p></div>` + renderEntryList(MAP_LABELS[name] || name, list);
+  box.innerHTML = `<div class="doc-detail"><p style="margin-top:0;"><i>${MAP_NOTES[name] || ''}</i></p>${effectLine(name)}</div>` + renderEntryList(MAP_LABELS[name] || name, list);
 }
 
 function renderHarta() {
@@ -819,7 +820,7 @@ function renderRetele() {
 function renderEntryList(title, entries) {
   let html = `<h4 style="margin-top:14px;">${title} — ${entries.length} hükümuri</h4>`;
   entries.slice(0, 20).forEach(e => {
-    html += `<details class="entry-card"><summary>#${e.num} — ${e.recipient} (${e.volume}, p. ${e.page})</summary>
+    html += `<details class="entry-card" data-rid="${entryRid(e)}"><summary>#${e.num} — ${e.recipient} (${e.volume}, p. ${e.page})</summary>
       <p><b>Rezumat:</b> ${e.summary}</p>${evidenceHtml(e, ['regions', 'fortresses'])}<div class="fulltext">${escapeHtml(e.fullText.slice(0, 1200))}</div></details>`;
   });
   if (entries.length > 20) html += `<p class="hint">Se afișează primele 20 din ${entries.length}.</p>`;
@@ -913,8 +914,8 @@ function renderDocumente() {
   const detailBox = document.getElementById('doc-detail-box');
   if (hasPdf()) {
     const docs = currentDocuments();
-    table.innerHTML = '<tr><th>Nr.</th><th>Destinatar</th><th>Regiuni</th><th>Cetăți</th><th>Teme</th><th>An</th><th>Volum</th><th>Pag.</th></tr>' +
-      docs.map((e, i) => `<tr data-idx="${i}" style="cursor:pointer;"><td>${e.num}</td><td>${e.recipient}</td><td>${e.regions.join(', ') || '—'}</td><td>${e.fortresses.join(', ') || '—'}</td><td>${e.themes.join(', ') || '—'}</td><td>${e.year != null ? e.year : '—'}</td><td>${e.volume}</td><td>${e.page}</td></tr>`).join('');
+    table.innerHTML = '<tr><th>Nr.</th><th>Destinatar</th><th>Regiuni</th><th>Cetăți</th><th>Teme</th><th>An</th><th>Volum</th><th>Pag.</th><th>Verificare</th></tr>' +
+      docs.map((e, i) => `<tr data-idx="${i}" style="cursor:pointer;"><td>${e.num}</td><td>${e.recipient}</td><td>${e.regions.join(', ') || '—'}</td><td>${e.fortresses.join(', ') || '—'}</td><td>${e.themes.join(', ') || '—'}</td><td>${e.year != null ? e.year : '—'}</td><td>${e.volume}</td><td>${e.page}</td><td>${reviewBadge(e)}</td></tr>`).join('');
     table.querySelectorAll('tr[data-idx]').forEach(tr => {
       tr.addEventListener('click', () => {
         const doc = docs[parseInt(tr.dataset.idx, 10)];

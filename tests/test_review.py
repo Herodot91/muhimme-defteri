@@ -161,3 +161,23 @@ def test_accuracy_by_label_reports_precision_and_recall(js):
 
 def test_accuracy_is_none_when_nothing_was_judged(js):
     assert js("accuracyByLabel({})") == []
+
+
+# --- baseline used by the effect panel ---------------------------------------
+
+@pytest.mark.parametrize("text", ["kilise yapıldı", "Kırkkilise beyine", "kılıç ile"])
+def test_naive_search_still_counts_the_lookalikes_the_engine_rejects(js, text):
+    assert js(f"classifyNaive({J(text)})")["fortresses"] == ["Kili (Chilia)"]
+    assert js(f"classifyText({J(text)})")["fortresses"] == []
+
+
+def test_naive_search_uses_only_the_first_term_of_each_place(js):
+    assert js(f"classifyNaive({J('Akkirman kalesi')})")["fortresses"] == []
+    assert js(f"classifyText({J('Akkirman kalesi')})")["fortresses"] == ["Akkerman (Cetatea Albă)"]
+
+
+def test_naive_and_engine_agree_on_plain_mentions(js):
+    text = "Eflâk ve Boğdan ve Erdel, Akkerman ve Bender"
+    naive = js(f"classifyNaive({J(text)})")
+    engine = js(f"classifyText({J(text)})")
+    assert naive["regions"] == engine["regions"] and naive["fortresses"] == engine["fortresses"]

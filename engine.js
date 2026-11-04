@@ -173,6 +173,14 @@ function classifyText(text, extraTerms) {
   };
 }
 
+// The first version's search: the first term of each place, matched as a
+// fragment of a word with no exclusions. Kept only as a baseline to show what
+// the later corrections changed.
+function classifyNaive(text) {
+  const hit = table => Object.entries(table).filter(([, terms]) => findFlexible(terms[0], text)).map(([label]) => label);
+  return { regions: hit(REGION_TERMS), fortresses: hit(FORTRESS_TERMS) };
+}
+
 const PERIOD_RE = /(\d{3,4})\s*[–\-]\s*(\d{3,4})\s*\/\s*(\d{4})\s*[–\-]\s*(\d{4})/;
 
 const ROMAN_NUMERALS = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X",
