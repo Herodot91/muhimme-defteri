@@ -108,6 +108,31 @@ function withTimeout(promise, ms, message) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
+// Rebuilds the printed lines of a page from the vertical position of each text
+// item. PDF.js only marks line ends for some PDFs, and the summary-only
+// volumes need real lines (recipient, summary, number lists).
+function itemsToLines(items) {
+  const lines = [];
+  let cur = '';
+  let lastY = null;
+  for (const it of items) {
+    const y = it.transform ? it.transform[5] : null;
+    if (cur && lastY !== null && y !== null && Math.abs(y - lastY) > 3) {
+      lines.push(cur);
+      cur = '';
+    }
+    cur += (cur && it.str && !/^\s/.test(it.str) ? ' ' : '') + it.str;
+    if (y !== null && it.str.trim()) lastY = y;
+    if (it.hasEOL) {
+      lines.push(cur);
+      cur = '';
+      lastY = null;
+    }
+  }
+  if (cur) lines.push(cur);
+  return lines.map(l => l.replace(/\s+/g, ' ').trim()).join('\n');
+}
+
 async function extractPages(file, onProgress) {
   const buf = await file.arrayBuffer();
   const pdf = await withTimeout(
@@ -120,6 +145,7 @@ async function extractPages(file, onProgress) {
   );
   const total = pdf.numPages;
   const pages = [];
+  const linePages = [];
   if (onProgress) onProgress(0, total);
   for (let i = 1; i <= total; i++) {
     const page = await withTimeout(pdf.getPage(i), 20000, `Extragerea paginii ${i}/${total} a durat prea mult (>20s) și a fost oprită.`);
@@ -130,28 +156,102 @@ async function extractPages(file, onProgress) {
       text += item.hasEOL ? '\n' : ' ';
     }
     pages.push(text);
+    linePages.push(itemsToLines(content.items));
     if (onProgress && (i % 5 === 0 || i === total)) onProgress(i, total);
   }
-  return pages;
+  return { pages, linePages, pdf };
+}
+
+// ---------------------------------------------------------------------
+// OCR for scanned volumes (pages that are only images). Tesseract.js and its
+// Turkish model are fetched on demand; the PDF itself never leaves the browser.
+// Only the printed contents list is read: it has one summary line per order.
+// ---------------------------------------------------------------------
+
+const TESSERACT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('Nu s-a putut încărca ' + src + ' (verifică conexiunea la internet sau un ad-blocker).'));
+    document.head.appendChild(s);
+  });
+}
+
+async function ocrContentsPages(pdf, total, onProgress) {
+  if (typeof Tesseract === 'undefined') await loadScript(TESSERACT_URL);
+  const workers = Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 4) - 1));
+  const scheduler = Tesseract.createScheduler();
+  for (let i = 0; i < workers; i++) scheduler.addWorker(await Tesseract.createWorker('tur'));
+  const texts = new Array(total).fill('');
+  const entryLines = text => (text.match(/^\s*\d{1,4}\s+[A-ZÇĞİÖŞÜ]/gm) || []).length;
+  const ocr = async p => {
+    const page = await pdf.getPage(p);
+    const viewport = page.getViewport({ scale: 2 });
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+    const result = await scheduler.addJob('recognize', canvas);
+    texts[p - 1] = result.data.text;
+    canvas.width = canvas.height = 0;
+  };
+  try {
+    await ocr(1);
+    let p = 2, started = false, quiet = 0, done = 1;
+    const limit = Math.min(total, 200);
+    while (p <= limit) {
+      const batch = [];
+      for (let k = 0; k < workers * 2 && p + k <= limit; k++) batch.push(p + k);
+      await Promise.all(batch.map(async q => { await ocr(q); done++; onProgress(done, q); }));
+      for (const q of batch) {
+        if (entryLines(texts[q - 1]) >= 8) { started = true; quiet = 0; } else if (started) quiet++;
+      }
+      if (started && quiet >= 2) break;
+      p += batch.length;
+    }
+  } finally {
+    await scheduler.terminate();
+  }
+  return texts;
 }
 
 async function processFile(file, statusEl) {
   statusEl.innerHTML = `<span class="spinner"></span>Se extrage textul din „${file.name}”...`;
   setBanner(`<span class="spinner"></span>Se încarcă „${file.name}”...`);
-  const pages = await extractPages(file, (done, total) => {
+  const { pages: flatPages, linePages, pdf } = await extractPages(file, (done, total) => {
     setProgress(done, total, `Se extrage textul din „${file.name}”`);
     statusEl.innerHTML = `<span class="spinner"></span>Pagina ${done}/${total}...`;
   });
   statusEl.innerHTML = `<span class="spinner"></span>Se analizează hükümurile...`;
-  setBanner(`<span class="spinner"></span>Se analizează hükümurile din „${file.name}” (${pages.length} pagini)...`);
+  setBanner(`<span class="spinner"></span>Se analizează hükümurile din „${file.name}” (${flatPages.length} pagini)...`);
+  let format = detectVolumeFormat(linePages);
+  let pages = format === 'ozet' ? linePages : flatPages;
+  if (format === 'scanned') {
+    statusEl.innerHTML = `<span class="spinner"></span>PDF scanat: se citește cuprinsul prin OCR...`;
+    const ocrPages = await ocrContentsPages(pdf, flatPages.length, (done, p) => {
+      setBanner(`<span class="spinner"></span>PDF-ul conține doar imagini. Se citește cuprinsul prin OCR (recunoaștere de text), pagina ${p}. Durează de obicei 1–3 minute.`);
+      statusEl.innerHTML = `<span class="spinner"></span>OCR: ${done} pagini citite...`;
+    });
+    if (!isContentsList(ocrPages)) {
+      throw new Error('PDF-ul conține doar imagini, iar OCR-ul nu a găsit un cuprins cu rezumate de hükümuri în primele pagini.');
+    }
+    format = 'icindekiler';
+    pages = ocrPages;
+  }
+  setBanner(`<span class="spinner"></span>Se analizează hükümurile din „${file.name}” (${flatPages.length} pagini)...`);
   const period = detectPeriod(pages);
-  let entries = parseEntries(pages, file.name);
+  let entries = format === 'icindekiler' ? parseContentsList(pages, file.name) : parseVolume(pages, file.name);
+  const parseStats = entries.stats || null;
+  const indexEntries = format === 'ozet' ? parseIndexEntries(pages) : [];
   entries = attachYears(entries, period);
   const centuryLabel = period
     ? `secolul ${period.centuryRoman} (${period.gregStart}–${period.gregEnd})`
     : "secol necunoscut (dată neidentificată pe pagina de titlu)";
   const objectUrl = URL.createObjectURL(file);
-  return { name: file.name, pages, period, entries, centuryLabel, objectUrl, pageCount: pages.length };
+  return { name: file.name, pages, period, entries, centuryLabel, objectUrl, pageCount: pages.length, format, parseStats, indexEntries };
 }
 
 document.getElementById('pdf-input').addEventListener('change', async (e) => {
@@ -253,7 +353,7 @@ function renderVolumesList() {
   if (!state.volumes.length) { box.style.display = 'none'; return; }
   box.style.display = 'block';
   list.innerHTML = state.volumes.map(v =>
-    `<div class="vol-row"><b>${v.name}</b><br>${v.pageCount} pagini · ${v.entries.length} hükümuri<br>${v.centuryLabel}</div>`
+    `<div class="vol-row"><b>${v.name}</b><br>${v.pageCount} pagini · ${v.entries.length} hükümuri<br>${v.centuryLabel}${v.format === 'ozet' ? '<br>doar rezumate și index' : ''}${v.format === 'icindekiler' ? '<br>cuprins citit prin OCR (doar rezumate)' : ''}</div>`
   ).join('');
 }
 
@@ -817,11 +917,17 @@ function renderRetele() {
   });
 }
 
+// The Ottoman/transliterated text of an order, or nothing for volumes that only
+// have summaries.
+function fulltextBlock(e, max) {
+  return e.fullText ? `<div class="fulltext">${escapeHtml(e.fullText.slice(0, max))}</div>` : '';
+}
+
 function renderEntryList(title, entries) {
   let html = `<h4 style="margin-top:14px;">${title} — ${entries.length} hükümuri</h4>`;
   entries.slice(0, 20).forEach(e => {
-    html += `<details class="entry-card" data-rid="${entryRid(e)}"><summary>#${e.num} — ${e.recipient} (${e.volume}, p. ${e.page})</summary>
-      <p><b>Rezumat:</b> ${e.summary}</p>${evidenceHtml(e, ['regions', 'fortresses'])}<div class="fulltext">${escapeHtml(e.fullText.slice(0, 1200))}</div></details>`;
+    html += `<details class="entry-card" data-rid="${entryRid(e)}"><summary>#${e.num}${e.recipient ? ' — ' + e.recipient : ''} (${e.volume}, p. ${e.page})</summary>
+      <p><b>Rezumat:</b> ${e.summary}</p>${evidenceHtml(e, ['regions', 'fortresses'])}${fulltextBlock(e, 1200)}</details>`;
   });
   if (entries.length > 20) html += `<p class="hint">Se afișează primele 20 din ${entries.length}.</p>`;
   return html;
@@ -905,7 +1011,7 @@ function currentDocuments() {
   const q = document.getElementById('doc-search').value.trim();
   if (region) docs = docs.filter(e => e.regions.includes(region) || e.fortresses.includes(region));
   if (theme) docs = docs.filter(e => e.themes.includes(theme));
-  if (q) docs = docs.filter(e => findFlexible(q, e.summary + ' ' + e.fullText));
+  if (q) docs = docs.filter(e => findFlexible(q, entryText(e)));
   return docs;
 }
 
@@ -925,7 +1031,8 @@ function renderDocumente() {
           <p><b>Regiuni:</b> ${doc.regions.join(', ') || '—'} &nbsp; <b>Cetăți:</b> ${doc.fortresses.join(', ') || '—'} &nbsp; <b>Teme:</b> ${doc.themes.join(', ') || '—'}</p>
           <p><b>Rezumat:</b> ${doc.summary}</p>
           ${evidenceHtml(doc)}
-          <div class="fulltext">${escapeHtml(doc.fullText.slice(0, 3000))}</div>
+          ${doc.dateText ? `<p><b>Data:</b> ${escapeHtml(doc.dateText)}</p>` : ''}
+          ${fulltextBlock(doc, 3000)}
           <h4 style="margin-top:14px;">Traducere (aproximativă, AI)</h4>
           <button id="translate-btn" type="button">Tradu în română</button>
           <div id="translate-result" style="margin-top:8px;"></div>
@@ -934,7 +1041,7 @@ function renderDocumente() {
           const resultEl = document.getElementById('translate-result');
           resultEl.innerHTML = '<span class="spinner"></span>Se traduce (poate apărea o fereastră de autentificare Puter, la prima folosire)...';
           try {
-            const translation = await translateToRomanian(doc.fullText.slice(0, 3000));
+            const translation = await translateToRomanian((doc.fullText || (doc.recipient + '. ' + doc.summary)).slice(0, 3000));
             resultEl.innerHTML = `<p>${escapeHtml(translation).replace(/\n/g, '<br>')}</p>
               <p class="hint">Traducere automată AI, aproximativă — necesită verificare filologică.</p>`;
           } catch (err) {
@@ -993,10 +1100,10 @@ function renderVolum() {
     const q = searchInput.value.trim();
     const results = document.getElementById('volum-search-results');
     if (!q) { results.innerHTML = ''; return; }
-    const matches = allEntries().filter(e => findFlexible(q, e.summary + ' ' + e.fullText));
+    const matches = allEntries().filter(e => findFlexible(q, entryText(e)));
     results.innerHTML = `<p><b>${matches.length} hükümuri</b> conțin „${q}”.</p>` +
-      matches.slice(0, 50).map(e => `<details class="entry-card"><summary>#${e.num} — ${e.recipient} (${e.volume}, p. ${e.page})</summary>
-        <p><b>Rezumat:</b> ${e.summary}</p><div class="fulltext">${escapeHtml(e.fullText.slice(0, 1500))}</div></details>`).join('') +
+      matches.slice(0, 50).map(e => `<details class="entry-card"><summary>#${e.num}${e.recipient ? ' — ' + e.recipient : ''} (${e.volume}, p. ${e.page})</summary>
+        <p><b>Rezumat:</b> ${e.summary}</p>${fulltextBlock(e, 1500)}</details>`).join('') +
       (matches.length > 50 ? `<p class="hint">Se afișează primele 50 din ${matches.length}.</p>` : '');
   };
 }

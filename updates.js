@@ -84,7 +84,7 @@ function entryRid(e) {
   if (e.rid === undefined) { e.rid = ++ridCounter; ridMap.set(e.rid, e); }
   return e.rid;
 }
-function textFor(e) { return e.summary + ' ' + e.fullText.slice(0, 2500); }
+function textFor(e) { return entryText(e); }
 function hasVolume() { return state.volumes.length > 0; }
 
 const evidenceCache = new Map();
@@ -651,11 +651,13 @@ const HISTORY = [
   ['7 oct. 2026', 'Hărți istorice (Moldova în 1483, harta lui Cantelli da Vignola din 1686) legate de volumul încărcat; corectarea numărului pentru Kili (88 devine 7).'],
   ['27 oct. 2026', 'Redesenarea paginii și teste automate pentru motor.'],
   ['2 nov. 2026', 'Actualizările devin funcționale: dovezi pentru etichete, corecții ale cercetătorului, registru de nume, comparare între cercetători, măsurarea acurateței.'],
+  ['4 nov. 2026', 'Volume noi: 5 (doar rezumate și index) și 91 (pagini scanate, citite prin OCR). Indexul tipărit devine răspuns de control. Regulă nouă pentru Bender: portul (cuvânt comun) nu mai este numărat ca cetate.'],
 ];
 
 const RESULT_CHANGES = [
   ['Hükümuri despre Kili (volumul 3)', '88', '7', 'Potrivirea „kili” prindea și kilise, Kırkkilise, Kilis, kılıç.'],
-  ['Hükümuri reale în corpus (volumul 3)', '258', '185', 'Consecința corectării de mai sus: multe hükümuri intrau în corpus doar prin Kili.'],
+  ['Hükümuri despre Bender (volumul 3)', '16', '5', '„bender” înseamnă și port (Basra benderine, Bender-i Şihr); doar „Bender” scris cu majusculă și fără „-i” este cetatea.'],
+  ['Hükümuri reale în corpus (volumul 3)', '258', '176', 'Consecința celor două corectări: multe hükümuri intrau în corpus doar prin Kili sau prin „bender” = port.'],
 ];
 
 function renderHistoryTool(box) {
@@ -694,10 +696,27 @@ function accuracyTableHtml() {
   <p class="rv-help">Precizia = etichete corecte din cele verificate. Acoperirea estimată = etichete corecte raportate la corecte plus cele adăugate manual ca lipsă. Cifrele valorează cât eșantionul: puține hükümuri verificate dau cifre nesigure.</p>`;
 }
 
+function indexCheckHtml() {
+  const vols = state.volumes.filter(v => v.indexEntries && v.indexEntries.length);
+  if (!vols.length) return '';
+  return vols.map(v => {
+    const rows = compareWithIndex(v.entries, v.indexEntries, e => e.auto || e).filter(r => r.gold > 0);
+    const gold = rows.reduce((n, r) => n + r.gold, 0), found = rows.reduce((n, r) => n + r.found, 0);
+    return `<h4 class="rv-sub">Verificare față de indexul tipărit al volumului</h4>
+      <p class="rv-help"><b>${esc(v.name)}</b> are un index tipărit (${v.indexEntries.length} de intrări) care arată, pentru fiecare nume, la ce hükümuri apare. Aplicația îl folosește ca răspuns de control: pentru fiecare loc se numără câte dintre hükümurile din index au primit eticheta automată.</p>
+      <div class="rv-table-wrap"><table class="rv-table"><thead><tr><th>Loc</th><th>În index</th><th>Găsite de motor</th><th>Acoperire</th><th>Ratate (nr. hüküm)</th></tr></thead><tbody>
+        ${rows.map(r => `<tr><td>${esc(r.label)}</td><td>${r.gold}</td><td>${r.found}</td><td>${pct(r.recall)}</td><td>${r.missed.slice(0, 8).join(', ')}${r.missed.length > 8 ? ' …' : ''}</td></tr>`).join('')}
+        <tr class="rv-total"><td>Total</td><td>${gold}</td><td>${found}</td><td>${pct(gold ? found / gold : null)}</td><td></td></tr>
+      </tbody></table></div>
+      <p class="rv-help">Se măsoară doar acoperirea. Indexul nu listează hükümurile adresate guvernatorului unui loc fără să-l menționeze în text, așa că precizia nu se poate calcula din el. Ratările sunt de obicei hükümuri al căror rezumat nu numește locul (îl numește doar textul otoman, care nu este în acest volum).</p>`;
+  }).join('');
+}
+
 function renderFutureTool(box) {
   if (!needVolume(box)) return;
   const sampleCount = rvState.sample ? rvState.sample.size : 0;
   box.innerHTML = `
+    ${indexCheckHtml()}
     <h4 class="rv-sub">1. Eșantion de verificare</h4>
     <p class="rv-help">Extrage la întâmplare câteva hükümuri din corpus, verifică-le de mână, iar aplicația măsoară cât de bune sunt etichetele automate.</p>
     <div class="rv-controls">
@@ -710,7 +729,7 @@ function renderFutureTool(box) {
     <div id="rv-accuracy">${accuracyTableHtml()}</div>
     <h4 class="rv-sub">Restul planului</h4>
     <ul class="rv-roadmap">
-      <li><b>Mai multe volume.</b> Poți încărca mai multe PDF-uri deodată, iar fila Comparație le pune alături. Până acum a fost testat doar volumul 3.</li>
+      <li><b>Mai multe volume.</b> Poți încărca mai multe PDF-uri deodată, iar fila Comparație le pune alături. Citite până acum: volumul 3 (rezumat și transcriere), volumul 5 (doar rezumate și index) și volumul 91 (scanat; doar cuprinsul a fost citit prin OCR, nu și textul hükümurilor).</li>
       <li><b>Registru de nume și excluderi.</b> Funcțional, vezi actualizarea 03.</li>
       <li><b>Straturi de hartă pentru mai multe perioade.</b> Parțial: există două hărți (1483 și 1686).</li>
       <li><b>Teste automate.</b> Parțial: testele rulează pe motor și pe logica de verificare; lipsesc încă teste pe fragmente din alte volume.</li>
@@ -920,7 +939,7 @@ const UPDATES = {
   future: {
     title: 'Dezvoltarea viitoare',
     status: 'Parțial funcțional',
-    problem: 'Testele de până acum au folosit un singur volum (volumul 3). Nu știm cât de bine se potrivesc regulile pe celelalte volume sau pe alte perioade.',
+    problem: 'Au fost încercate trei volume (3, 5 și 91), dar formatele diferă (rezumat plus transcriere, doar rezumate și index, pagini scanate). Nu știm încă cât de bine se potrivesc regulile pe alte volume sau pe alte perioade.',
     solution: 'Primul pas este funcțional: un eșantion aleator de hükümuri pe care le verifici de mână, iar aplicația calculează precizia pentru fiecare etichetă. Celelalte etape (mai multe volume, straturi de hartă pentru alte perioade, mai multe teste) sunt listate cu starea lor.',
     effect: 'Concluziile despre Eflak, Boğdan și Erdel pot fi susținute cu o acuratețe măsurată, nu doar cu cifre brute.',
     tool: box => renderFutureTool(box),
