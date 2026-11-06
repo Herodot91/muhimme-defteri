@@ -652,6 +652,7 @@ const HISTORY = [
   ['27 oct. 2026', 'Redesenarea paginii și teste automate pentru motor.'],
   ['2 nov. 2026', 'Actualizările devin funcționale: dovezi pentru etichete, corecții ale cercetătorului, registru de nume, comparare între cercetători, măsurarea acurateței.'],
   ['4 nov. 2026', 'Volume noi: 5 (doar rezumate și index) și 91 (pagini scanate, citite prin OCR). Indexul tipărit devine răspuns de control. Regulă nouă pentru Bender: portul (cuvânt comun) nu mai este numărat ca cetate.'],
+  ['6 nov. 2026', 'Rețelele sunt în 3D: se rotesc și se măresc, iar nodurile se mută cu mausul și rămân fixate unde le lași; clic pe un nod arată hükümurile lui. Vederea 2D rămâne disponibilă. Nu există niciun model de învățare automată: selecția se face prin reguli și prin verificările cercetătorului.'],
 ];
 
 const RESULT_CHANGES = [
@@ -732,6 +733,7 @@ function renderFutureTool(box) {
       <li><b>Mai multe volume.</b> Poți încărca mai multe PDF-uri deodată, iar fila Comparație le pune alături. Citite până acum: volumul 3 (rezumat și transcriere), volumul 5 (doar rezumate și index) și volumul 91 (scanat; doar cuprinsul a fost citit prin OCR, nu și textul hükümurilor).</li>
       <li><b>Registru de nume și excluderi.</b> Funcțional, vezi actualizarea 03.</li>
       <li><b>Straturi de hartă pentru mai multe perioade.</b> Parțial: există două hărți (1483 și 1686).</li>
+      <li><b>Model de învățare automată pentru selecție.</b> Nu există. Etichetarea folosește reguli (cuvinte-cheie, registru de nume, excluderi), iar verdictele Corect / Greșit și eșantionul verificat de mână ar putea deveni date de antrenare. Până atunci aplicația nu pretinde acuratețe pe care nu a măsurat-o.</li>
       <li><b>Teste automate.</b> Parțial: testele rulează pe motor și pe logica de verificare; lipsesc încă teste pe fragmente din alte volume.</li>
     </ul>`;
   const area = box.querySelector('#rv-sample-area');

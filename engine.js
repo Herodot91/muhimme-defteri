@@ -65,7 +65,7 @@ function isWholeWord(text, index, length) {
   return !(before && letter.test(before)) && !(after && letter.test(after));
 }
 
-const ENGINE_VERSION = '2026-11-04';
+const ENGINE_VERSION = '2026-11-06';
 
 // Register of historical names. `terms` are what the engine searches for;
 // `names` document the other forms of the same place; `exclude` records which
@@ -682,6 +682,26 @@ function parseContentsList(pages, volumeLabel) {
   for (let k = 1; k <= lastNum; k++) if (!have.has(k)) missing.push(k);
   entries.stats = { entries: entries.length, gaps: missing.length, missing, lastNum, notes };
   return entries;
+}
+
+// Nodes and links of a network, ready for the 3D graph. Links whose ends are
+// not nodes are dropped (the library fails on them).
+function buildGraphData(nodeWeights, edgeWeights, centerLabel) {
+  const ids = Object.keys(nodeWeights);
+  const known = new Set(ids);
+  const links = [];
+  Object.entries(edgeWeights).forEach(([key, weight]) => {
+    const [source, target] = key.split('§§');
+    if (known.has(source) && known.has(target) && source !== target) links.push({ source, target, weight });
+  });
+  const degree = {};
+  ids.forEach(id => { degree[id] = 0; });
+  links.forEach(l => { degree[l.source]++; degree[l.target]++; });
+  const kindOf = id => id === centerLabel ? 'center' : REGION_TERMS[id] ? 'region' : FORTRESS_TERMS[id] ? 'fortress' : 'recipient';
+  return {
+    nodes: ids.map(id => ({ id, weight: nodeWeights[id], degree: degree[id], kind: kindOf(id) })),
+    links,
+  };
 }
 
 function attachYears(entries, period) {

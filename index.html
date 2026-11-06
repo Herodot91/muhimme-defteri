@@ -10,6 +10,7 @@
 <script src="vendor/pdf.min.js"></script>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="vendor/3d-force-graph.min.js"></script>
 <script src="https://js.puter.com/v2/"></script>
 <style>
   :root {
@@ -345,6 +346,13 @@
   .rv-effect-line { margin: 6px 0 0; font-size: 14px; color: #4a4034; }
   @media (max-width: 700px) { .effects { padding: 18px 16px; } .fx-head h2 { font-size: 22px; } }
 
+  /* ---- 3D networks ---- */
+  .chart-box.net3d { position: relative; overflow: hidden; padding: 0; background: #1d2923; border-color: #3b4a41; }
+  .chart-box.net3d canvas { display: block; }
+  .net3d-labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  .net3d-label { position: absolute; left: 0; top: 0; font-size: 12.5px; font-weight: 600; color: #f6f0df; text-shadow: 0 0 3px #1d2923, 0 0 3px #1d2923, 0 0 6px #1d2923; white-space: nowrap; }
+  .net3d-tip { font-family: var(--sans); font-size: 13px; padding: 4px 8px; background: #fbf7ec; color: #231d14; border: 1px solid #b8a982; border-radius: 6px; }
+
   .status { font-size: 0.85rem; padding: 6px 0; }
   .status.ok { color: var(--accent-2); }
   .status.err { color: var(--accent); }
@@ -459,7 +467,8 @@
     </section>
 
     <section id="retele" class="panel">
-      <p class="hint">Dă clic pe un nod pentru a vedea hükümurile asociate.</p>
+      <div id="network-toolbar" class="map-toolbar"></div>
+      <p class="hint">Vederea 3D: trage un nod ca să-l muți (rămâne fixat unde îl lași; clic dreapta îl eliberează), trage fundalul ca să rotești, rotița mausului mărește și micșorează. Dă clic pe un nod pentru a vedea hükümurile asociate.</p>
       <div class="chart-box" id="chart-network-recipients" style="height:700px;"></div>
       <div id="network-detail-1"></div>
       <div class="chart-box" id="chart-network-regions" style="height:700px; margin-top:16px;"></div>

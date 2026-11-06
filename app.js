@@ -778,6 +778,7 @@ function dataToClient(gd, x, y) {
 }
 
 function renderNetworkChart(divId, nodeWeights, edgeWeights, title, onNodeClick) {
+  destroyNetwork3D(divId);
   const nodeIds = Object.keys(nodeWeights);
   if (!nodeIds.length) {
     document.getElementById(divId).innerHTML = '<p style="padding:20px;">Niciun rezultat.</p>';
@@ -874,8 +875,154 @@ function renderNetworkChart(divId, nodeWeights, edgeWeights, title, onNodeClick)
   }, true);
 }
 
+// ---------------------------------------------------------------------
+// 3D networks (3d-force-graph, self-hosted in vendor/). Nodes can be dragged
+// (they stay where they are dropped), the scene rotates and zooms, and a click
+// on a node lists its hüküms. Positions survive re-renders of the page.
+// ---------------------------------------------------------------------
+
+const networkState = { mode: '3d', autoRotate: false };
+const net3d = {};
+const net3dMemory = {};
+const NET_COLORS = { center: '#e0b43c', region: '#d96a58', fortress: '#5aa0c8', recipient: '#9bc48a' };
+
+function destroyNetwork3D(divId) {
+  const n = net3d[divId];
+  if (!n) return;
+  cancelAnimationFrame(n.raf);
+  const data = n.graph.graphData();
+  net3dMemory[divId] = {
+    nodes: Object.fromEntries(data.nodes.map(d => [d.id, { x: d.x, y: d.y, z: d.z, fx: d.fx, fy: d.fy, fz: d.fz }])),
+    camera: n.graph.cameraPosition(),
+  };
+  if (n.graph._destructor) n.graph._destructor();
+  delete net3d[divId];
+  const box = document.getElementById(divId);
+  if (box) { box.innerHTML = ''; box.classList.remove('net3d'); }
+}
+
+function renderNetwork3D(divId, nodeWeights, edgeWeights, title, onNodeClick) {
+  const box = document.getElementById(divId);
+  destroyNetwork3D(divId);
+  if (typeof Plotly !== 'undefined' && box.classList.contains('js-plotly-plot')) Plotly.purge(box);
+  box.innerHTML = '';
+  if (!Object.keys(nodeWeights).length) { box.innerHTML = '<p style="padding:20px;">Niciun rezultat.</p>'; return; }
+  if (typeof ForceGraph3D === 'undefined') {
+    box.innerHTML = '<p style="padding:20px;">Biblioteca 3D nu s-a încărcat (WebGL sau fișierul vendor/3d-force-graph.min.js). Folosește vederea 2D.</p>';
+    return;
+  }
+  const center = divId === 'chart-network-recipients' ? 'Poarta Otomană (Sultan)' : null;
+  const data = buildGraphData(nodeWeights, edgeWeights, center);
+  const maxW = Math.max(1, ...data.nodes.map(n => n.weight));
+  const maxLink = Math.max(1, ...data.links.map(l => l.weight));
+  const memory = net3dMemory[divId];
+  if (memory) data.nodes.forEach(n => { const m = memory.nodes[n.id]; if (m && m.x !== undefined) Object.assign(n, m); });
+
+  box.classList.add('net3d');
+  let fitted = false;
+  const graph = ForceGraph3D({ controlType: 'orbit' })(box)
+    .width(box.clientWidth || 800).height(box.clientHeight || 700)
+    .backgroundColor('#1d2923')
+    .graphData(data)
+    .nodeRelSize(5)
+    .nodeVal(n => 1 + 10 * n.weight / maxW)
+    .nodeColor(n => NET_COLORS[n.kind])
+    .nodeOpacity(0.95)
+    .nodeResolution(18)
+    .nodeLabel(n => `<div class="net3d-tip"><b>${escapeHtml(n.id)}</b><br>${n.weight} hükümuri · ${n.degree} legături</div>`)
+    .linkColor(() => 'rgba(233,226,208,0.55)')
+    .linkWidth(l => 0.3 + 2.2 * l.weight / maxLink)
+    .linkDirectionalParticles(l => (l.weight > maxLink * 0.4 ? 2 : 0))
+    .linkDirectionalParticleWidth(1.6)
+    .onNodeClick(n => {
+      const d = Math.hypot(n.x, n.y, n.z) || 1;
+      const k = 1 + 160 / d;
+      graph.cameraPosition({ x: n.x * k, y: n.y * k, z: n.z * k }, n, 700);
+      onNodeClick(n.id);
+    })
+    .onNodeDragEnd(n => { n.fx = n.x; n.fy = n.y; n.fz = n.z; })
+    .onNodeRightClick(n => { n.fx = n.fy = n.fz = undefined; graph.d3ReheatSimulation(); })
+    .onEngineStop(() => { if (!fitted && !(memory && memory.camera)) { fitted = true; graph.zoomToFit(600, 70); } })
+    .cooldownTime(4000);
+  // spread the layout: stronger repulsion, longer links for weaker ties
+  graph.d3Force('charge').strength(-190);
+  graph.d3Force('link').distance(l => 55 + 45 * (1 - l.weight / maxLink));
+  graph.controls().autoRotate = networkState.autoRotate;
+  graph.controls().autoRotateSpeed = 1.2;
+  if (memory && memory.camera) graph.cameraPosition(memory.camera);
+  else graph.cameraPosition({ x: 0, y: 0, z: 260 });
+
+  // names next to the biggest nodes (HTML labels projected from 3D)
+  const labelLayer = document.createElement('div');
+  labelLayer.className = 'net3d-labels';
+  box.appendChild(labelLayer);
+  const labelled = [...data.nodes].sort((a, b) => b.weight - a.weight).slice(0, 14);
+  const labels = labelled.map(n => {
+    const el = document.createElement('div');
+    el.className = 'net3d-label';
+    el.textContent = n.id.length > 28 ? n.id.slice(0, 27) + '…' : n.id;
+    labelLayer.appendChild(el);
+    return { n, el };
+  });
+  const state3d = { graph, raf: 0, w: 0, h: 0, paused: false };
+  net3d[divId] = state3d;
+  const frame = () => {
+    const visible = box.offsetParent !== null && box.clientWidth > 0;
+    if (visible) {
+      if (state3d.paused) { graph.resumeAnimation(); state3d.paused = false; }
+      if (box.clientWidth !== state3d.w || box.clientHeight !== state3d.h) {
+        state3d.w = box.clientWidth; state3d.h = box.clientHeight;
+        graph.width(state3d.w).height(state3d.h);
+      }
+      labels.forEach(({ n, el }) => {
+        if (n.x === undefined) return;
+        const p = graph.graph2ScreenCoords(n.x, n.y, n.z);
+        const r = 3 + 8 * Math.cbrt(n.weight / maxW);
+        el.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y - r * 2.2)}px) translate(-50%, -100%)`;
+        el.style.display = p.x < 0 || p.x > state3d.w || p.y < 0 || p.y > state3d.h ? 'none' : 'block';
+      });
+    } else if (!state3d.paused) { graph.pauseAnimation(); state3d.paused = true; }
+    state3d.raf = requestAnimationFrame(frame);
+  };
+  frame();
+}
+
+function renderNetwork(divId, nodeWeights, edgeWeights, title, onNodeClick) {
+  if (networkState.mode === '3d') renderNetwork3D(divId, nodeWeights, edgeWeights, title, onNodeClick);
+  else renderNetworkChart(divId, nodeWeights, edgeWeights, title, onNodeClick);
+}
+
+function renderNetworkToolbar() {
+  const bar = document.getElementById('network-toolbar');
+  if (!bar) return;
+  bar.innerHTML = `
+    <button type="button" data-net-mode="3d" class="${networkState.mode === '3d' ? 'active' : ''}">Vedere 3D</button>
+    <button type="button" data-net-mode="2d" class="${networkState.mode === '2d' ? 'active' : ''}">Vedere 2D</button>
+    ${networkState.mode === '3d' ? `
+      <label><input type="checkbox" id="net-autorotate" ${networkState.autoRotate ? 'checked' : ''}> Rotire automată</label>
+      <button type="button" id="net-reset">Eliberează nodurile</button>` : ''}`;
+  bar.querySelectorAll('button[data-net-mode]').forEach(b => b.addEventListener('click', () => {
+    networkState.mode = b.dataset.netMode;
+    renderRetele();
+  }));
+  const rot = document.getElementById('net-autorotate');
+  if (rot) rot.addEventListener('change', () => {
+    networkState.autoRotate = rot.checked;
+    Object.values(net3d).forEach(n => { n.graph.controls().autoRotate = rot.checked; });
+  });
+  const reset = document.getElementById('net-reset');
+  if (reset) reset.addEventListener('click', () => {
+    Object.values(net3d).forEach(n => {
+      n.graph.graphData().nodes.forEach(d => { d.fx = d.fy = d.fz = undefined; });
+      n.graph.d3ReheatSimulation();
+    });
+  });
+}
+
 function renderRetele() {
+  renderNetworkToolbar();
   if (!hasPdf()) {
+    Object.keys(net3d).forEach(destroyNetwork3D);
     document.getElementById('chart-network-recipients').innerHTML = '<p style="padding:20px;">Disponibil doar cu date reale — încarcă un volum PDF.</p>';
     document.getElementById('chart-network-regions').innerHTML = '';
     document.getElementById('network-detail-1').innerHTML = '';
@@ -893,7 +1040,7 @@ function renderRetele() {
     nodeWeights1[r] = c;
     edgeWeights1["Poarta Otomană (Sultan)§§" + r] = c;
   });
-  renderNetworkChart('chart-network-recipients', nodeWeights1, edgeWeights1, 'Destinatarii hükümurilor (din document)', (node) => {
+  renderNetwork('chart-network-recipients', nodeWeights1, edgeWeights1, 'Destinatarii hükümurilor (din document)', (node) => {
     const matched = node === "Poarta Otomană (Sultan)" ? entries : entries.filter(e => e.recipient === node);
     document.getElementById('network-detail-1').innerHTML = renderEntryList(node, matched);
   });
@@ -911,7 +1058,7 @@ function renderRetele() {
       }
     }
   });
-  renderNetworkChart('chart-network-regions', nodeWeights2, edgeWeights2, 'Co-menționări regiuni și cetăți', (node) => {
+  renderNetwork('chart-network-regions', nodeWeights2, edgeWeights2, 'Co-menționări regiuni și cetăți', (node) => {
     const matched = entries.filter(e => e.regions.includes(node) || e.fortresses.includes(node));
     document.getElementById('network-detail-2').innerHTML = renderEntryList(node, matched);
   });
