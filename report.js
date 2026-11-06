@@ -293,3 +293,6 @@ function exportDemoFile(index) {
   };
   downloadFile(`exemplu-demonstrativ-${'ABC'[index]}.json`, 'application/json', JSON.stringify(payload, null, 2));
 }
+
+// updates.js drew the effect panel before this file defined collabSets; draw it again.
+if (typeof renderEffects === 'function') renderEffects();

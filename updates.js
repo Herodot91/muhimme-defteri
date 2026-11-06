@@ -680,7 +680,8 @@ const HISTORY = [
   ['4 nov. 2026', 'Volume noi: 5 (doar rezumate și index) și 91 (pagini scanate, citite prin OCR). Indexul tipărit devine răspuns de control. Regulă nouă pentru Bender: portul (cuvânt comun) nu mai este numărat ca cetate.'],
   ['6 nov. 2026', 'Rețelele sunt în 3D: se rotesc și se măresc, iar nodurile se mută cu mausul și rămân fixate unde le lași; clic pe un nod arată hükümurile lui. Vederea 2D rămâne disponibilă. Nu există niciun model de învățare automată: selecția se face prin reguli și prin verificările cercetătorului.'],
   ['6 nov. 2026 (seara)', 'Fiecare cifră și metodă are o explicație la un clic (căutare simplă, motor actual, după corecții, teste, învățare automată). Verificarea colaborativă are grafice pe pagină și un raport PDF cu grafice. Clasificarea nu folosește învățare automată; OCR-ul și traducerea o folosesc, iar explicația spune exact unde.'],
-  ['7 nov. 2026', 'Prototip: acordul pe etichetă, precizia și celelalte grafice se pot încerca pe date demonstrative (fictive), fără volum și fără colegi reali, cu fișiere demonstrative descărcabile în formatul real de export și un raport PDF demonstrativ. Fiecare grafic are o explicație la un clic.'],
+  ['6 nov. 2026 (noaptea)', 'Prototip: acordul pe etichetă, precizia și celelalte grafice se pot încerca pe date demonstrative (fictive), fără volum și fără colegi reali, cu fișiere demonstrative descărcabile în formatul real de export și un raport PDF demonstrativ. Fiecare grafic are o explicație la un clic.'],
+  ['6 nov. 2026 (ultima)', 'Pagina principală arată acum ultimele trei actualizări, cu un buton spre tot istoricul modificărilor.']
 ];
 
 const RESULT_CHANGES = [
@@ -913,7 +914,7 @@ function renderEffects() {
 }
 
 function collabStatusHtml() {
-  const sets = collabSets();
+  const sets = typeof collabSets === 'function' ? collabSets() : []; // report.js loads after this file
   const cmp = sets.length >= 2 ? compareAnnotators(sets) : null;
   const text = !sets.length ? 'Nicio verificare încă.'
     : !cmp ? 'O singură persoană a verificat etichete; importă fișierul unui coleg pentru comparație.'
@@ -1022,5 +1023,20 @@ document.querySelectorAll('.update-button').forEach(b => b.addEventListener('cli
 
 // Corrections saved in an earlier visit apply as soon as a volume is loaded
 // (the upload handler calls applyReview); nothing to do before then.
-
 renderEffects();
+
+// The newest entries of the change history, shown on the main page.
+function renderLatestUpdates() {
+  const box = document.getElementById('latest-updates');
+  if (!box) return;
+  const firstSentence = t => { const m = /^.+?[.!?](?=\s|$)/.exec(t); return m ? m[0] : t; };
+  const items = HISTORY.slice(-3).reverse().map(([date, text]) =>
+    `<li><time>${esc(date)}</time><span>${esc(firstSentence(text))}</span></li>`).join('');
+  box.innerHTML = `<div class="latest-head">
+      <h2>Ultimele actualizări</h2>
+      <button type="button" class="fx-link" data-fx-tool="history">Tot istoricul modificărilor</button>
+    </div>
+    <ul class="latest-list">${items}</ul>`;
+}
+
+renderLatestUpdates();
