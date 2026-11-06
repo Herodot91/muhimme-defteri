@@ -225,7 +225,7 @@ function evidenceItemHtml(e, ev, actions) {
   return `<li class="rv-item${v === 'no' ? ' rejected' : ''}">
     <div class="rv-item-head"><b>${esc(ev.label)}</b>
       <span class="rv-term">termen: ${esc(ev.term)}</span>
-      <span class="rv-tag ${ev.wholeWord ? 'whole' : 'partial'}">${ev.wholeWord ? 'cuvânt întreg' : 'potrivire parțială'}</span>${verdictTag}</div>
+      <button type="button" class="rv-tag ${ev.wholeWord ? 'whole' : 'partial'}" data-explain="partial" aria-label="Explicație: cuvânt întreg și potrivire parțială">${ev.wholeWord ? 'cuvânt întreg' : 'potrivire parțială'}</button>${verdictTag}</div>
     <div class="rv-snippet">${snippetHtml(textFor(e), ev)}</div>${buttons}</li>`;
 }
 
@@ -567,6 +567,7 @@ function adoptVerdict(key, id, verdict) {
 function renderCollaborationTool(box) {
   const me = review.annotator || 'Eu';
   const sets = [{ name: me, items: review.annotations }, ...review.colleagues];
+  const hasDemo = review.colleagues.some(c => /^Demonstrativ/.test(c.name));
   const withData = sets.filter(s => Object.keys(s.items).length);
   const cmp = compareAnnotators(sets);
   const byKey = new Map(allEntries().map(e => [entryKey(e), e]));
@@ -587,12 +588,16 @@ function renderCollaborationTool(box) {
     return `<tr><td>${describe(key)}</td><td>${esc(labelOfId(d.id))}</td>${cells}<td>${adopt}</td></tr>`;
   }).join('');
   box.innerHTML = `
-    <p class="rv-help">Corecțiile tale rămân în acest browser. Fiecare cercetător le exportă într-un fișier, iar aici se pot încărca fișierele colegilor ca să se vadă unde verdictele diferă.</p>
+    <p class="rv-help">Corecțiile tale rămân în acest browser. Fiecare cercetător le exportă într-un fișier, iar aici se pot încărca fișierele colegilor ca să se vadă unde verdictele diferă. <button type="button" class="rv-linkish" data-explain="collab">Cum se calculează acordul</button></p>
     <div class="rv-controls">
       <label>Numele tău <input type="text" id="rv-name" value="${escAttr(review.annotator)}" maxlength="40" placeholder="ex. Ana"></label>
       <button type="button" class="rv-btn" data-act="export-json">Exportă corecțiile (JSON)</button>
       <button type="button" class="rv-btn" data-act="export-csv">Exportă corecțiile (CSV)</button>
       <label class="rv-file">Importă fișiere de la colegi <input type="file" id="rv-import" accept="application/json,.json" multiple></label>
+    </div>
+    <div class="rv-controls">
+      <button type="button" class="rv-btn primary" data-act="report">Descarcă raportul PDF cu grafice</button>
+      ${hasDemo ? '<button type="button" class="rv-btn" data-act="rm-demo">Elimină colegii demonstrativi</button>' : (hasVolume() ? '<button type="button" class="rv-btn" data-act="demo">Încearcă cu doi colegi demonstrativi (date fictive)</button>' : '')}
     </div>
     <div id="rv-collab-msg" class="rv-msg" role="status"></div>
     ${countersHtml()}
@@ -602,7 +607,10 @@ function renderCollaborationTool(box) {
     ${withData.length < 2
       ? '<p class="rv-none">Comparația apare când cel puțin două persoane (tu și un coleg, sau doi colegi) au verificat aceleași etichete.</p>'
       : `<p><b>${cmp.judged}</b> etichete verificate de cel puțin două persoane; <b>${cmp.agree}</b> la fel (${pct(cmp.judged ? cmp.agree / cmp.judged : null)}); <b>${cmp.disagreements.length}</b> cu verdicte diferite.</p>
-         ${rows ? `<div class="rv-table-wrap"><table class="rv-table"><thead><tr><th>Hüküm</th><th>Etichetă</th>${sets.map(s => `<th>${esc(s.name)}</th>`).join('')}<th></th></tr></thead><tbody>${rows}</tbody></table></div>` : ''}`}`;
+         ${rows ? `<div class="rv-table-wrap"><table class="rv-table"><thead><tr><th>Hüküm</th><th>Etichetă</th>${sets.map(s => `<th>${esc(s.name)}</th>`).join('')}<th></th></tr></thead><tbody>${rows}</tbody></table></div>` : ''}`}
+    <h4 class="rv-sub">Grafice</h4>
+    <div id="collab-charts"></div>`;
+  renderCollabCharts(box.querySelector('#collab-charts'));
   const msg = box.querySelector('#rv-collab-msg');
   box.querySelector('#rv-name').addEventListener('change', ev => {
     review.annotator = cleanName(ev.target.value);
@@ -623,10 +631,14 @@ function renderCollaborationTool(box) {
     const act = btn.dataset.act;
     if (act === 'export-json') exportAnnotationsJson();
     else if (act === 'export-csv') exportAnnotationsCsv();
+    else if (act === 'report') downloadCollabReport(box.querySelector('#rv-collab-msg'));
+    else if (act === 'demo') { addDemoColleagues(); renderCollaborationTool(box); box.querySelector('#rv-collab-msg').textContent = 'Au fost adăugați doi colegi fictivi, doar ca să vezi comparația. Nu sunt date reale și pot fi eliminați.'; renderEffects(); }
+    else if (act === 'rm-demo') { removeDemoColleagues(); renderCollaborationTool(box); renderEffects(); }
     else if (act === 'rm-colleague') {
       review.colleagues.splice(parseInt(btn.dataset.i, 10), 1);
       persistReview();
       renderCollaborationTool(box);
+      renderEffects();
     } else if (act === 'adopt') {
       const d = cmp.disagreements[parseInt(btn.dataset.d, 10)];
       const v = d.verdicts[parseInt(btn.dataset.i, 10)];
@@ -653,6 +665,7 @@ const HISTORY = [
   ['2 nov. 2026', 'Actualizările devin funcționale: dovezi pentru etichete, corecții ale cercetătorului, registru de nume, comparare între cercetători, măsurarea acurateței.'],
   ['4 nov. 2026', 'Volume noi: 5 (doar rezumate și index) și 91 (pagini scanate, citite prin OCR). Indexul tipărit devine răspuns de control. Regulă nouă pentru Bender: portul (cuvânt comun) nu mai este numărat ca cetate.'],
   ['6 nov. 2026', 'Rețelele sunt în 3D: se rotesc și se măresc, iar nodurile se mută cu mausul și rămân fixate unde le lași; clic pe un nod arată hükümurile lui. Vederea 2D rămâne disponibilă. Nu există niciun model de învățare automată: selecția se face prin reguli și prin verificările cercetătorului.'],
+  ['6 nov. 2026 (seara)', 'Fiecare cifră și metodă are o explicație la un clic (căutare simplă, motor actual, după corecții, teste, învățare automată). Verificarea colaborativă are grafice pe pagină și un raport PDF cu grafice. Clasificarea nu folosește învățare automată; OCR-ul și traducerea o folosesc, iar explicația spune exact unde.'],
 ];
 
 const RESULT_CHANGES = [
@@ -733,8 +746,8 @@ function renderFutureTool(box) {
       <li><b>Mai multe volume.</b> Poți încărca mai multe PDF-uri deodată, iar fila Comparație le pune alături. Citite până acum: volumul 3 (rezumat și transcriere), volumul 5 (doar rezumate și index) și volumul 91 (scanat; doar cuprinsul a fost citit prin OCR, nu și textul hükümurilor).</li>
       <li><b>Registru de nume și excluderi.</b> Funcțional, vezi actualizarea 03.</li>
       <li><b>Straturi de hartă pentru mai multe perioade.</b> Parțial: există două hărți (1483 și 1686).</li>
-      <li><b>Model de învățare automată pentru selecție.</b> Nu există. Etichetarea folosește reguli (cuvinte-cheie, registru de nume, excluderi), iar verdictele Corect / Greșit și eșantionul verificat de mână ar putea deveni date de antrenare. Până atunci aplicația nu pretinde acuratețe pe care nu a măsurat-o.</li>
-      <li><b>Teste automate.</b> Parțial: testele rulează pe motor și pe logica de verificare; lipsesc încă teste pe fragmente din alte volume.</li>
+      <li><button type="button" class="rv-linkish" data-explain="ml">Model de învățare automată pentru selecție.</button> Nu există. Etichetarea folosește reguli (cuvinte-cheie, registru de nume, excluderi), iar verdictele Corect / Greșit și eșantionul verificat de mână ar putea deveni date de antrenare. Dă clic pe titlu ca să vezi unde se folosește și unde nu învățarea automată.</li>
+      <li><button type="button" class="rv-linkish" data-explain="tests">Teste automate.</button> Funcțional pentru motor: ${TEST_SUITES.reduce((n, s) => n + s[1], 0)} de teste obișnuite de cod (pytest, fără model ML) verifică motorul, logica de verificare, citirea volumelor 5 și 91 și rețelele. Parțial pentru volume: folosesc fragmente scurte inventate după tiparele acelor volume, nu volumele întregi. Dă clic pe titlu pentru lista completă.</li>
     </ul>`;
   const area = box.querySelector('#rv-sample-area');
   const drawSample = () => {
@@ -807,7 +820,7 @@ function reviewBadge(e) {
     if (added) parts.push(`<span class="rv-tag whole">${added} adăugat</span>`);
   }
   const unreviewedPartial = evidenceFor(e).some(ev => (ev.kind === 'regions' || ev.kind === 'fortresses') && !ev.wholeWord && !(a && a.verdicts[labelId(ev.kind, ev.label)]));
-  if (unreviewedPartial) parts.push('<span class="rv-tag partial">de verificat</span>');
+  if (unreviewedPartial) parts.push('<button type="button" class="rv-tag partial" data-explain="partial" aria-label="Explicație: de verificat">de verificat</button>');
   return parts.join(' ') || '<span class="rv-meta">—</span>';
 }
 
@@ -851,9 +864,10 @@ function renderEffects() {
       <h2>Efectul actualizărilor asupra mențiunilor</h2>
       <span class="fx-version">motor ${esc(ENGINE_VERSION)}</span>
     </div>
-    <p class="fx-lead">Aceleași hükümuri, numărate în trei moduri: <b>căutarea simplă</b> din prima versiune (fragment de cuvânt, fără excluderi), <b>motorul actual</b> (cuvânt întreg pentru nume scurte, dovezi, registru de nume) și <b>după corecțiile tale</b>.</p>
+    <p class="fx-lead">Aceleași hükümuri, numărate în trei moduri: <b>căutarea simplă</b> din prima versiune (fragment de cuvânt, fără excluderi), <b>motorul actual</b> (cuvânt întreg pentru nume scurte, dovezi, registru de nume) și <b>după corecțiile tale</b>. Dă clic pe un titlu de coloană ca să vezi explicația.</p>
+    <p class="fx-ml"><b>Niciun model de învățare automată nu alege etichetele.</b> Toate cele trei coloane sunt calculate prin reguli de text și prin verdictele tale. <button type="button" class="fx-link" data-explain="ml">Unde se folosește învățarea automată</button></p>
     <div class="fx-table-wrap"><table class="fx-table">
-      <thead><tr><th>Loc</th><th>Căutare simplă</th><th>Motor actual</th><th>După corecții</th><th>Efect</th><th></th></tr></thead>
+      <thead><tr><th>Loc</th><th><button type="button" class="fx-help" data-explain="simple" aria-label="Explicație: Căutare simplă">Căutare simplă <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.2 9.2a2.8 2.8 0 1 1 3.9 2.6c-.8.4-1.1.9-1.1 1.7"></path><circle cx="12" cy="17.2" r="0.6" fill="currentColor"></circle></svg></button></th><th><button type="button" class="fx-help" data-explain="engine" aria-label="Explicație: Motor actual">Motor actual <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.2 9.2a2.8 2.8 0 1 1 3.9 2.6c-.8.4-1.1.9-1.1 1.7"></path><circle cx="12" cy="17.2" r="0.6" fill="currentColor"></circle></svg></button></th><th><button type="button" class="fx-help" data-explain="corrected" aria-label="Explicație: După corecții">După corecții <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.2 9.2a2.8 2.8 0 1 1 3.9 2.6c-.8.4-1.1.9-1.1 1.7"></path><circle cx="12" cy="17.2" r="0.6" fill="currentColor"></circle></svg></button></th><th><button type="button" class="fx-help" data-explain="effect" aria-label="Explicație: Efect">Efect <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.2 9.2a2.8 2.8 0 1 1 3.9 2.6c-.8.4-1.1.9-1.1 1.7"></path><circle cx="12" cy="17.2" r="0.6" fill="currentColor"></circle></svg></button></th><th></th></tr></thead>
       <tbody>
         ${rows.map(({ p, c }) => `<tr>
           <th scope="row">${esc(p.label)}</th>
@@ -877,7 +891,21 @@ function renderEffects() {
       <button type="button" class="fx-link" data-fx-tool="future">Eșantion și acuratețe</button>
       <button type="button" class="fx-link" data-fx-tool="names">Registru de nume</button>
     </p>
+    ${collabStatusHtml()}
     ${lastActionHtml()}`;
+}
+
+function collabStatusHtml() {
+  const sets = collabSets();
+  const cmp = sets.length >= 2 ? compareAnnotators(sets) : null;
+  const text = !sets.length ? 'Nicio verificare încă.'
+    : !cmp ? 'O singură persoană a verificat etichete; importă fișierul unui coleg pentru comparație.'
+    : `${sets.length} cercetători, ${cmp.judged} etichete comparate, acord ${pct(cmp.judged ? cmp.agree / cmp.judged : null)}.`;
+  return `<p class="fx-collab"><b>Verificare colaborativă:</b> ${esc(text)}
+    <button type="button" class="fx-link" data-fx-report>Raport PDF cu grafice</button>
+    <button type="button" class="fx-link" data-fx-tool="collaboration">Deschide comparația</button>
+    <button type="button" class="fx-link" data-explain="collab">Cum se calculează</button>
+    <span id="fx-report-status" class="rv-meta" role="status"></span></p>`;
 }
 
 document.addEventListener('click', ev => {
@@ -885,6 +913,7 @@ document.addEventListener('click', ev => {
   if (open) { openTool('evidence', open.dataset.fxOpen); return; }
   const tool = ev.target.closest('[data-fx-tool]');
   if (tool) { openTool(tool.dataset.fxTool); return; }
+  if (ev.target.closest('[data-fx-report]')) { downloadCollabReport(document.getElementById('fx-report-status')); return; }
   if (ev.target.closest('[data-fx-undo]') && lastAction) {
     setVerdictExact(lastAction.key, lastAction.id, lastAction.prev);
     lastAction = null;
@@ -926,7 +955,7 @@ const UPDATES = {
     title: 'Verificare colaborativă',
     status: 'Funcțional în aplicație',
     problem: 'Site-ul este static și rulează doar în browser, deci nu are server în care mai mulți cercetători să-și păstreze corecțiile. Verificarea rămânea munca unei singure persoane.',
-    solution: 'Fiecare cercetător își exportă corecțiile într-un fișier. Aici se pot încărca fișierele colegilor, iar aplicația arată unde verdictele diferă și permite adoptarea verdictului unui coleg.',
+    solution: 'Fiecare cercetător își exportă corecțiile într-un fișier. Aici se pot încărca fișierele colegilor, iar aplicația arată unde verdictele diferă, afișează grafice (verdicte pe cercetător, acord pe etichetă, precizie) și generează un raport PDF cu graficele și tabelul dezacordurilor. Verdictul unui coleg se poate adopta.',
     effect: 'Verificarea poate fi împărțită pe volume, iar dezacordurile dintre cercetători devin vizibile și se pot discuta, în loc să rămână ascunse în cifre.',
     tool: box => renderCollaborationTool(box),
   },

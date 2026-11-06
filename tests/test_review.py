@@ -181,3 +181,25 @@ def test_naive_and_engine_agree_on_plain_mentions(js):
     naive = js(f"classifyNaive({J(text)})")
     engine = js(f"classifyText({J(text)})")
     assert naive["regions"] == engine["regions"] and naive["fortresses"] == engine["fortresses"]
+
+
+# --- numbers for the collaboration report -------------------------------------
+
+def test_agreement_is_reported_per_label(js):
+    a = {"e1": {"verdicts": {"f:Kili (Chilia)": "ok", "r:Eflak (Țara Românească)": "no"}, "added": {}},
+         "e2": {"verdicts": {"f:Kili (Chilia)": "ok"}, "added": {}}}
+    b = {"e1": {"verdicts": {"f:Kili (Chilia)": "ok", "r:Eflak (Țara Românească)": "ok"}, "added": {}},
+         "e2": {"verdicts": {"f:Kili (Chilia)": "no"}, "added": {}}}
+    result = js(f"compareAnnotators([{{name:'A',items:{J(a)}}},{{name:'B',items:{J(b)}}}])")
+    by = {r["id"]: r for r in result["byLabel"]}
+    assert by["f:Kili (Chilia)"] == {"id": "f:Kili (Chilia)", "judged": 2, "agree": 1}
+    assert by["r:Eflak (Țara Românească)"] == {"id": "r:Eflak (Țara Românească)", "judged": 1, "agree": 0}
+
+
+def test_annotator_summary_counts_verdicts_added_labels_and_notes(js):
+    items = {
+        "e1": {"verdicts": {"f:Kili (Chilia)": "ok", "r:Eflak (Țara Românească)": "no"}, "added": {"fortresses": ["Bender (Tighina)"]}, "note": "x"},
+        "e2": {"verdicts": {"f:Kili (Chilia)": "ok"}, "added": {}},
+    }
+    assert js(f"annotatorSummary({J(items)})") == {"ok": 2, "no": 1, "added": 1, "entries": 2, "notes": 1}
+    assert js("annotatorSummary({})") == {"ok": 0, "no": 0, "added": 0, "entries": 0, "notes": 0}

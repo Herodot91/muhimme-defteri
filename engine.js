@@ -811,15 +811,33 @@ function compareAnnotators(sets) {
   });
   let judged = 0, agree = 0;
   const disagreements = [];
+  const labels = new Map();
   byItem.forEach(item => {
     const vs = item.verdicts.filter(v => v);
     if (vs.length < 2) return;
     judged++;
     const yes = vs.filter(v => v !== 'no').length;
-    if (yes === 0 || yes === vs.length) agree++;
+    const same = yes === 0 || yes === vs.length;
+    if (same) agree++;
     else disagreements.push(item);
+    if (!labels.has(item.id)) labels.set(item.id, { id: item.id, judged: 0, agree: 0 });
+    const row = labels.get(item.id);
+    row.judged++;
+    if (same) row.agree++;
   });
-  return { judged, agree, disagreements };
+  const byLabel = [...labels.values()].sort((a, b) => a.id.localeCompare(b.id));
+  return { judged, agree, disagreements, byLabel };
+}
+
+// How many labels one person confirmed, rejected and added, over how many orders.
+function annotatorSummary(items) {
+  const s = { ok: 0, no: 0, added: 0, entries: 0, notes: 0 };
+  Object.values(items || {}).forEach(ann => {
+    s.entries++;
+    Object.values(verdictMap(ann)).forEach(v => { if (v === 'ok') s.ok++; else if (v === 'no') s.no++; else s.added++; });
+    if (ann && ann.note) s.notes++;
+  });
+  return s;
 }
 
 // Per label: confirmed, rejected and added counts, with precision and a recall estimate.

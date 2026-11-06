@@ -1,0 +1,209 @@
+// Click-to-read explanations: what each number or method is, what it is based
+// on, and whether a machine-learning model is involved. Opened from the column
+// headers of the effect panel, the roadmap and the evidence tags.
+
+const TEST_SUITES = [
+  ['test_engine.py', 37, 'Potrivirea numelor de locuri (Kili, Bender, Eflak …), toleranța la diacritice, tema Anexare / Istimalet, împărțirea în hükümuri, perioade și ani.'],
+  ['test_review.py', 35, 'Dovezi, corecțiile cercetătorului, curățarea fișierelor importate, compararea cercetătorilor, acuratețea, cifrele pentru raport.'],
+  ['test_summary_volumes.py', 29, 'Citirea volumelor „Özet ve İndeks” (volumul 5): numere de pe pagină, note de subsol, date exacte, indexul tipărit, regula pentru Bender.'],
+  ['test_contents_ocr.py', 16, 'Citirea cuprinsului unui volum scanat (volumul 91) după OCR: numere citite greșit, numere sărite, linii pierdute.'],
+  ['test_network.py', 4, 'Pregătirea nodurilor și legăturilor pentru rețelele 3D.'],
+  ['test_docs.py', 2, 'Verifică faptul că numărul de teste din această explicație este cel real și că fiecare explicație din aplicație există.'],
+];
+
+function mlBadge(answer, text) {
+  return `<p class="ex-ml ${answer ? 'yes' : 'no'}"><b>Model de învățare automată: ${answer ? 'da' : 'nu'}.</b> ${text}</p>`;
+}
+
+// Examples taken from the loaded volume: orders the simple search counts but the
+// current engine does not.
+function simpleOnlyExamples(limit) {
+  const picked = new Map();
+  for (const e of allEntries()) {
+    const naive = naiveLabels(e), auto = e.auto || e;
+    for (const kind of ['regions', 'fortresses']) {
+      for (const label of naive[kind]) {
+        if (auto[kind].includes(label) || picked.has(label)) continue;
+        const term = NAME_REGISTRY.find(p => p.label === label).terms[0];
+        const m = new RegExp(flexiblePattern(term), 'i').exec(textFor(e));
+        if (m) picked.set(label, { e, label, index: m.index, match: m[0] });
+      }
+    }
+    if (picked.size >= limit) break;
+  }
+  return [...picked.values()];
+}
+
+function simpleExamplesHtml() {
+  if (!hasVolume()) {
+    return `<p>Fără volum încărcat, un exemplu tipic: „kili” se găsește și în <em>kilise</em> (biserică), <em>Kırkkilise</em> (un oraș din Tracia) și <em>kılıç</em> (sabie), pentru că ı și i sunt tratate la fel. Încarcă un volum ca să vezi exemple din el.</p>`;
+  }
+  const ex = simpleOnlyExamples(4);
+  if (!ex.length) return '<p>În volumul încărcat, căutarea simplă și motorul actual dau aceleași rezultate.</p>';
+  return '<p>Hükümuri din volumul încărcat pe care căutarea simplă le numără, dar motorul actual nu:</p><ul class="ex-list">' +
+    ex.map(x => `<li><b>${esc(x.label)}</b> — #${esc(x.e.num)}<div class="rv-snippet">${snippetHtml(textFor(x.e), x)}</div></li>`).join('') + '</ul>';
+}
+
+function engineRulesTableHtml() {
+  const special = { 'Kili (Chilia)': 'cuvânt întreg, cu i punctat (exclude kilise, Kırkkilise, Kilis, kılıç)', 'Bender (Tighina)': 'cu majusculă, cuvânt întreg, fără „-i” după (exclude benderine = port, Bender-i Şihr)' };
+  const variants = review.variants || {};
+  return '<div class="rv-table-wrap"><table class="rv-table"><thead><tr><th>Loc</th><th>Termeni căutați</th><th>Regulă</th></tr></thead><tbody>' +
+    NAME_REGISTRY.map(p => `<tr><td>${esc(p.label)}</td><td>${p.terms.concat(variants[p.label] || []).map(t => `<code>${esc(t)}</code>`).join(' ')}</td><td>${esc(special[p.label] || 'fragment de cuvânt, diacritice tolerate')}</td></tr>`).join('') +
+    '</tbody></table></div>';
+}
+
+function themeRulesHtml() {
+  return '<ul class="ex-list">' + Object.entries(THEME_TERMS).map(([theme, words]) =>
+    `<li><b>${esc(theme)}</b>: ${words.map(w => `<code>${esc(w)}</code>`).join(' ')}</li>`).join('') + '</ul>';
+}
+
+const EXPLAIN = {
+  simple: {
+    title: 'Căutare simplă',
+    html: () => `
+      ${mlBadge(false, 'Este o căutare de text, nu o clasificare învățată din date.')}
+      <h4>Ce este</h4>
+      <p>Prima versiune a aplicației. Pentru fiecare loc caută în textul hükümului <b>primul său nume</b> din listă („eflak”, „bogdan”, „erdel”, „kili”, „akkerman”, „bender”, „hotin”, „silistre”) ca <b>fragment de cuvânt</b>, fără nicio excludere. Diacriticele sunt tolerate (ı = i, â = a, ş = s), la fel și spațiile rătăcite din PDF.</p>
+      <h4>Pe ce se bazează</h4>
+      <ul>
+        <li>O expresie regulată pe fiecare loc. Nu există antrenare, scoruri sau probabilități.</li>
+        <li>Același text dă mereu același rezultat.</li>
+        <li>Orice apariție a literelor contează, chiar în interiorul altui cuvânt. De aceea numără prea mult.</li>
+      </ul>
+      <h4>De ce a rămas în aplicație</h4>
+      <p>Ca punct de comparație: arată câte mențiuni s-ar număra fără corecțiile făcute ulterior.</p>
+      <h4>Exemple</h4>
+      ${simpleExamplesHtml()}`,
+  },
+  engine: {
+    title: 'Motor actual',
+    html: () => `
+      ${mlBadge(false, 'Sunt reguli scrise de mână: liste de nume, expresii regulate și excluderi. Motorul nu învață din date.')}
+      <h4>Ce este</h4>
+      <p>Versiunea curentă a clasificării automate (versiunea ${esc(ENGINE_VERSION)}). Pentru fiecare hüküm se caută numele din <b>registrul de nume</b> și cuvintele-cheie ale temelor, apoi se păstrează pentru fiecare etichetă <b>termenul găsit și fragmentul</b> (dovada).</p>
+      <h4>Pe ce se bazează</h4>
+      <ul>
+        <li><b>Registru de nume</b> (actualizarea 03): variantele fiecărui loc, plus cele adăugate de tine.</li>
+        <li><b>Expresii regulate</b> tolerante la diacritice, vocale lungi (â, î, û) și spații rătăcite.</li>
+        <li><b>Reguli de excludere</b> pentru cuvinte care seamănă cu numele unui loc.</li>
+        <li><b>Textul analizat</b> depinde de volum: rezumat plus primele 2500 de caractere din text (volumul 3), destinatar plus rezumat (volumul 5), rezumatul din cuprins (volumul 91).</li>
+        <li><b>Teme</b>: dacă apare oricare cuvânt-cheie din listă, tema se atribuie (fără scor sau pondere).</li>
+      </ul>
+      <h4>Locuri și reguli</h4>
+      ${engineRulesTableHtml()}
+      <h4>Teme și cuvinte-cheie</h4>
+      ${themeRulesHtml()}
+      <h4>Limite</h4>
+      <p>Regulile nu înțeleg contextul: un cuvânt scris la fel dar cu alt sens poate fi numărat. De aceea fiecare etichetă are o dovadă pe care o poți verifica, iar potrivirile pe fragment de cuvânt sunt marcate „de verificat”.</p>`,
+  },
+  corrected: {
+    title: 'După corecții',
+    html: () => {
+      const t = reviewTotals();
+      return `
+        ${mlBadge(false, 'Sunt verdictele unui cercetător, nu ale unui model.')}
+        <h4>Ce este</h4>
+        <p>Etichetele motorului actual, minus cele pe care le-ai marcat <b>Greșit</b>, plus cele pe care le-ai adăugat ca lipsă. Toate cifrele, hărțile, graficele și tabelele din aplicație se calculează din aceste etichete corectate.</p>
+        <h4>Pe ce se bazează</h4>
+        <ul>
+          <li>Butoanele Corect / Greșit de lângă dovezi (pe hartă, în Documente, în Actualizări).</li>
+          <li>Corecțiile se păstrează numai în acest browser; se pot exporta și compara cu ale colegilor.</li>
+        </ul>
+        <h4>Acum</h4>
+        <p>${t.ok} confirmate, ${t.no} respinse, ${t.added} adăugate, în ${t.entries} hükümuri.</p>`;
+    },
+  },
+  effect: {
+    title: 'Efect',
+    html: () => `
+      ${mlBadge(false, 'Este o simplă scădere.')}
+      <p>Efect = numărul <b>după corecții</b> minus numărul din <b>căutarea simplă</b>. Un număr negativ înseamnă că potrivirile pe fragmente de cuvânt, cele care nu erau de fapt locul căutat, au fost eliminate.</p>`,
+  },
+  partial: {
+    title: 'Cuvânt întreg și potrivire parțială',
+    html: () => `
+      ${mlBadge(false, 'Verificarea se face cu o regulă simplă pe literele din jurul termenului.')}
+      <p><b>Cuvânt întreg</b>: termenul găsit nu este lipit de alte litere (de exemplu „Eflâk’e”: apostroful nu este literă).</p>
+      <p><b>Potrivire parțială</b>: termenul este lipit de litere, deci poate fi o formă flexionată („Eflake”) sau o parte dintr-un alt cuvânt („Kırkkilise”). Merită verificată cu butoanele Corect / Greșit.</p>`,
+  },
+  ml: {
+    title: 'Învățare automată: unde se folosește și unde nu',
+    html: () => `
+      <p class="ex-ml no"><b>Clasificarea (regiuni, cetăți, teme) nu folosește învățare automată.</b> Nu există un model antrenat pentru selecție.</p>
+      <div class="rv-table-wrap"><table class="rv-table"><thead><tr><th>Componentă</th><th>Cum funcționează</th><th>Învățare automată?</th></tr></thead><tbody>
+        <tr><td>Clasificarea în regiuni, cetăți și teme</td><td>Liste de nume, cuvinte-cheie, expresii regulate, excluderi</td><td><b>Nu</b></td></tr>
+        <tr><td>Împărțirea în hükümuri, numere, date, index</td><td>Expresii regulate și reguli de aliniere pe pagină</td><td><b>Nu</b></td></tr>
+        <tr><td>Citirea PDF-urilor cu text</td><td>PDF.js extrage textul din fișier</td><td><b>Nu</b></td></tr>
+        <tr><td>Citirea PDF-urilor scanate (OCR)</td><td>Tesseract.js, modelul pentru limba turcă; o rețea neuronală recunoaște literele din imagine</td><td><b>Da</b>, doar pentru a citi pagini scanate (volumul 91), nu pentru a alege etichete</td></tr>
+        <tr><td>Traducerea în română</td><td>Puter.js trimite textul hükümului ales unui model lingvistic (Claude), doar când apeși „Tradu”</td><td><b>Da</b>, la cerere</td></tr>
+        <tr><td>Rețelele 3D</td><td>Algoritm de forțe (aranjare de grafuri)</td><td><b>Nu</b></td></tr>
+        <tr><td>Acuratețea măsurată</td><td>Verdictele tale Corect / Greșit, împărțite la numărul de etichete verificate</td><td><b>Nu</b></td></tr>
+      </tbody></table></div>
+      <h4>De ce reguli și nu un model</h4>
+      <ul>
+        <li>Fiecare etichetă poate fi justificată cu termenul și fragmentul găsit.</li>
+        <li>Nu există încă un set mare de hükümuri etichetate de specialiști pe care să se antreneze și să se evalueze un model.</li>
+      </ul>
+      <h4>Ce ar putea urma</h4>
+      <p>Verdictele Corect / Greșit și eșantionul verificat de mână (actualizarea 06) ar putea deveni date de antrenare și de evaluare pentru un model de clasificare. Până atunci, aplicația nu pretinde nicio acuratețe pe care nu a măsurat-o.</p>`,
+  },
+  tests: {
+    title: 'Teste automate',
+    html: () => {
+      const total = TEST_SUITES.reduce((n, s) => n + s[1], 0);
+      return `
+        ${mlBadge(false, 'Testele sunt verificări obișnuite de cod, nu un model.')}
+        <h4>Ce sunt</h4>
+        <p>${total} de teste scrise cu <b>pytest</b>. Fiecare ia un fragment scurt de text sau de date, rulează motorul (<code>engine.js</code>, prin Node) și verifică dacă rezultatul este exact cel așteptat. De exemplu: „<em>kilise yapıldı</em>” nu trebuie să dea cetatea Kili, iar „<em>Bender Kalesi’nde</em>” trebuie să dea Bender.</p>
+        <div class="rv-table-wrap"><table class="rv-table"><thead><tr><th>Fișier</th><th>Teste</th><th>Ce verifică</th></tr></thead><tbody>
+          ${TEST_SUITES.map(([f, n, what]) => `<tr><td><code>${esc(f)}</code></td><td>${n}</td><td>${esc(what)}</td></tr>`).join('')}
+        </tbody></table></div>
+        <h4>Despre „fragmente din alte volume”</h4>
+        <p>Testele folosesc fragmente scurte <b>inventate după tiparele</b> volumelor 5 și 91 (pagini de rezumate cu numere, cuprins cu rânduri strâmbe de la OCR), nu volumele întregi. Volumele reale au fost verificate în aplicație: de exemplu volumul 5 față de indexul său tipărit, unde motorul găsește 89% din mențiunile indexate. Ce lipsește încă: teste pe fragmente reale din fiecare volum și pe volume noi.</p>
+        <p>Cifrele de mai sus sunt cele de la versiunea ${esc(ENGINE_VERSION)}. Ele se pot rula pe calculator cu <code>python -m pytest</code> în dosarul proiectului.</p>`;
+    },
+  },
+  collab: {
+    title: 'Verificare colaborativă',
+    html: () => `
+      ${mlBadge(false, 'Compară verdictele a doi sau mai mulți cercetători; nu folosește niciun model.')}
+      <h4>Cum funcționează</h4>
+      <ul>
+        <li>Fiecare cercetător marchează etichetele cu Corect / Greșit în aplicația lui (corecțiile rămân în browserul lui).</li>
+        <li>Își exportă corecțiile într-un fișier JSON și îl trimite colegilor.</li>
+        <li>Aici se importă fișierele colegilor. Pentru fiecare etichetă verificată de cel puțin două persoane se vede dacă verdictele sunt la fel.</li>
+      </ul>
+      <h4>Ce înseamnă „acord”</h4>
+      <p>Două verdicte sunt la fel dacă amândouă confirmă eticheta (inclusiv când o adaugă ca lipsă) sau amândouă o resping. Procentul de acord este numărul de etichete cu verdicte la fel împărțit la numărul de etichete verificate de cel puțin două persoane. Nu este un test statistic și nu corectează pentru acordul întâmplător.</p>
+      <h4>Raportul PDF</h4>
+      <p>Raportul cuprinde rezumatul, graficele (verdicte pe cercetător, acord pe etichetă, precizie pe cercetător, cifrele pe locuri) și tabelul dezacordurilor.</p>`,
+  },
+};
+
+function ensureExplainDialog() {
+  let dlg = document.getElementById('explain-dialog');
+  if (dlg) return dlg;
+  dlg = document.createElement('dialog');
+  dlg.id = 'explain-dialog';
+  dlg.className = 'explain-dialog';
+  dlg.innerHTML = '<div class="ex-head"><h3 id="explain-title"></h3><button type="button" class="ex-close" id="explain-close" aria-label="Închide explicația">Închide</button></div><div id="explain-body" class="ex-body"></div>';
+  document.body.appendChild(dlg);
+  dlg.querySelector('#explain-close').addEventListener('click', () => dlg.close());
+  dlg.addEventListener('click', ev => { if (ev.target === dlg) dlg.close(); });
+  return dlg;
+}
+
+function showExplanation(key) {
+  const item = EXPLAIN[key];
+  if (!item) return;
+  const dlg = ensureExplainDialog();
+  dlg.querySelector('#explain-title').textContent = item.title;
+  dlg.querySelector('#explain-body').innerHTML = item.html();
+  if (!dlg.open) dlg.showModal();
+  dlg.querySelector('#explain-body').scrollTop = 0;
+}
+
+document.addEventListener('click', ev => {
+  const trigger = ev.target.closest('[data-explain]');
+  if (trigger) { ev.preventDefault(); showExplanation(trigger.dataset.explain); }
+});

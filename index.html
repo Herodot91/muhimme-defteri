@@ -353,6 +353,32 @@
   .net3d-label { position: absolute; left: 0; top: 0; font-size: 12.5px; font-weight: 600; color: #f6f0df; text-shadow: 0 0 3px #1d2923, 0 0 3px #1d2923, 0 0 6px #1d2923; white-space: nowrap; }
   .net3d-tip { font-family: var(--sans); font-size: 13px; padding: 4px 8px; background: #fbf7ec; color: #231d14; border: 1px solid #b8a982; border-radius: 6px; }
 
+  /* ---- explanations, tags as buttons, collaboration ---- */
+  button.rv-tag { border: 0; font-family: inherit; cursor: pointer; }
+  button.rv-tag:hover { filter: brightness(0.95); text-decoration: underline; }
+  .rv-linkish { background: none; border: 0; padding: 0; font: inherit; font-weight: 700; color: var(--accent); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+  .rv-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff8e6; font-weight: 600; }
+  .fx-help { display: inline-flex; align-items: center; gap: 6px; font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; background: none; border: 1px dashed var(--line-strong); border-radius: 6px; padding: 6px 8px; min-height: 44px; cursor: pointer; }
+  .fx-help:hover { border-color: var(--accent); color: var(--accent); }
+  .fx-ml { margin: 0 0 14px; font-size: 14.5px; line-height: 1.6; color: var(--ink); background: #e3ebd9; border: 1px solid #9bb08a; border-radius: 8px; padding: 10px 14px; }
+  .fx-collab { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--line); font-size: 14px; }
+  .collab-chart .chart-box { min-height: 0; padding: 6px; }
+  .explain-dialog { max-width: min(760px, calc(100vw - 24px)); width: 100%; max-height: 88vh; padding: 0; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--card); color: var(--ink); box-shadow: 0 20px 60px rgba(0,0,0,0.35); }
+  .explain-dialog::backdrop { background: rgba(29, 41, 35, 0.55); }
+  .ex-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 22px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--card); }
+  .ex-head h3 { margin: 0; font-family: var(--serif); font-weight: 500; font-size: 26px; line-height: 1.15; }
+  .ex-close { min-height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--card); font: inherit; font-size: 14px; cursor: pointer; color: var(--ink); }
+  .ex-body { padding: 8px 22px 22px; overflow-y: auto; max-height: calc(88vh - 80px); font-size: 15px; line-height: 1.65; }
+  .ex-body h4 { margin: 18px 0 6px; font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+  .ex-body p { margin: 0 0 10px; }
+  .ex-body ul { margin: 0 0 10px; padding-left: 20px; }
+  .ex-body li { margin-bottom: 6px; }
+  .ex-body code { background: #efe6cf; padding: 1px 6px; border-radius: 4px; font-size: 13px; }
+  .ex-list { list-style: none; padding-left: 0; }
+  .ex-ml { padding: 10px 14px; border-radius: 8px; margin: 12px 0 4px; font-size: 15px; }
+  .ex-ml.no { background: #e3ebd9; border: 1px solid #9bb08a; color: #26391c; }
+  .ex-ml.yes { background: #f6e2b8; border: 1px solid #c9a24a; color: #5a3d00; }
+
   .status { font-size: 0.85rem; padding: 6px 0; }
   .status.ok { color: var(--accent-2); }
   .status.err { color: var(--accent); }
@@ -564,5 +590,7 @@
 <script src="engine.js"></script>
 <script src="app.js"></script>
 <script src="updates.js"></script>
+<script src="explain.js"></script>
+<script src="report.js"></script>
 </body>
 </html>
