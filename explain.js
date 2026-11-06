@@ -140,6 +140,14 @@ const EXPLAIN = {
     },
     html: () => `
       <p class="ex-ml no"><b>Model de învățare automată: nu.</b> Clasificarea automată este un algoritm de reguli: liste de nume și cuvinte-cheie, transformate în expresii regulate. Nu există model antrenat, date de antrenare, scoruri sau probabilități.</p>
+      <h4>Răspuns scurt</h4>
+      <div class="rv-table-wrap"><table class="rv-table"><tbody>
+        <tr><th scope="row">Cum se clasifică?</th><td>Cu <b>reguli scrise de oameni</b>: liste de nume și cuvinte-cheie căutate în text.</td></tr>
+        <tr><th scope="row">Ce algoritm?</th><td>Potrivire de <b>expresii regulate</b>; dacă oricare termen din listă apare în text, eticheta se atribuie („SAU” logic). Fără scor, fără probabilități.</td></tr>
+        <tr><th scope="row">Python?</th><td>Nu pentru clasificare. Clasificarea este scrisă în <b>JavaScript</b> și rulează în browserul tău. Python se folosește doar pentru testele automate (pytest) și pentru prima versiune a aplicației, nefolosită acum.</td></tr>
+        <tr><th scope="row">Model de învățare automată?</th><td><b>Niciunul.</b> Nu există model antrenat, deci nu există un nume de model de indicat.</td></tr>
+        <tr><th scope="row">Unde există totuși învățare automată?</th><td>(1) <b>OCR</b>: Tesseract.js (rețea neuronală LSTM, model pentru limba turcă) citește literele din paginile scanate ale volumului 91; (2) <b>traducerea</b>: un model lingvistic (Claude, prin Puter.js), doar când apeși „Tradu”. Niciunul nu alege etichete.</td></tr>
+      </tbody></table></div>
       <h4>Ce cod s-a scris</h4>
       <ul>
         <li><b>JavaScript, în browser</b>: fișierul <code>engine.js</code> (citirea și împărțirea volumelor, clasificarea, dovezile, logica verificării). Aceasta este singura clasificare folosită de site. Nimic nu se trimite unui server.</li>
@@ -270,15 +278,40 @@ const EXPLAIN = {
       <p>Datele fictive nu sunt verdicte reale și nu trebuie citate. Raportul și fișierele le marchează „fictiv”.</p>`,
   },
   collab: {
-    title: 'Verificare colaborativă',
+    title: 'Verificare colaborativă: la ce folosește',
     html: () => `
       ${mlBadge(false, 'Compară verdictele a doi sau mai mulți cercetători; nu folosește niciun model.')}
-      <h4>Cum funcționează</h4>
+      <h4>Scopul, pe scurt</h4>
+      <p>Aplicația găsește singură locurile (Kili, Eflak, Akkerman…) în hükümuri, dar <b>poate greși</b>, iar listele ei de cuvinte nu au fost validate de istorici. <b>Verificarea colaborativă</b> înseamnă că mai mulți cercetători controlează aceleași rezultate, fiecare separat, iar aplicația arată <b>unde sunt de acord și unde nu</b>. Scopul este să știm cât ne putem baza pe etichete și unde merită discutat.</p>
+      <h4>De ce nu ajunge o singură persoană</h4>
       <ul>
-        <li>Fiecare cercetător marchează etichetele cu Corect / Greșit în aplicația lui (corecțiile rămân în browserul lui).</li>
-        <li>Își exportă corecțiile într-un fișier JSON și îl trimite colegilor.</li>
-        <li>Aici se importă fișierele colegilor. Pentru fiecare etichetă verificată de cel puțin două persoane se vede dacă verdictele sunt la fel.</li>
+        <li>O singură persoană poate greși sau poate înțelege un fragment altfel decât alta.</li>
+        <li>Dacă <b>doi oameni judecă la fel</b>, rezultatul este mai sigur. Dacă <b>judecă diferit</b>, tocmai acolo este ceva de discutat: un text neclar, un nume cu două sensuri sau o regulă a aplicației care trebuie corectată.</li>
+        <li>Site-ul nu are server, deci nu poate aduna singur părerile; fiecare le păstrează în browserul lui și le trimite colegilor sub formă de fișier.</li>
       </ul>
+      <h4>Un exemplu</h4>
+      <p>Hüküm nr. 12 a primit de la aplicație eticheta „Kili”. Ana o marchează <b>Corect</b>. Mihai o marchează <b>Greșit</b>, pentru că textul vorbește de o <em>kilise</em> (biserică), nu de cetatea Kili. Aplicația notează un <b>dezacord</b> la hükümul 12 și arată ambele verdicte lângă fragmentul din text. Cei doi discută și decid; dacă Mihai are dreptate, regula pentru „Kili” poate fi strânsă.</p>
+      <h4>Pașii</h4>
+      <ol>
+        <li>Fiecare cercetător marchează etichetele cu <b>Corect</b> / <b>Greșit</b> în fila „Actualizări”, la „Corecții ale cercetătorului”. Corecțiile rămân în browserul lui.</li>
+        <li>Își <b>exportă</b> corecțiile într-un fișier (JSON sau CSV) și îl trimite colegilor.</li>
+        <li>Colegii <b>importă</b> fișierul în aplicație, la „Verificare colaborativă”.</li>
+        <li>Aplicația arată <b>acordul pe etichetă</b>, precizia fiecăruia, tabelul dezacordurilor și poate genera un <b>raport PDF cu grafice</b>.</li>
+      </ol>
+      <h4>Ce obții</h4>
+      <ul>
+        <li>Cât la sută din etichetele verificate de cel puțin doi oameni au primit același verdict.</li>
+        <li>Care etichete (de exemplu Kili, Bender sau o temă) provoacă cele mai multe dezacorduri.</li>
+        <li>Lista exactă a hükümurilor în care părerile diferă, ca să le discutați.</li>
+        <li>Un raport PDF pe care îl poți arăta sau atașa unei lucrări.</li>
+      </ul>
+      <h4>Ce nu este</h4>
+      <ul>
+        <li>Nu decide cine are dreptate: dezacordul rămâne în seama oamenilor (poți doar adopta verdictul unui coleg).</li>
+        <li>Nu antrenează niciun model și nu schimbă singură regulile motorului.</li>
+        <li>Nu trimite nimic pe internet: fișierele circulă între voi, nu prin site.</li>
+      </ul>
+      <p class="rv-help">Încă nu ai colegi? Folosește exemplul demonstrativ din prototip ca să vezi cum arată graficele: <button type="button" class="rv-linkish" data-explain="proto">Despre datele demonstrative</button></p>
       <h4>Ce înseamnă „acord”</h4>
       <p>Două verdicte sunt la fel dacă amândouă confirmă eticheta (inclusiv când o adaugă ca lipsă) sau amândouă o resping. Procentul de acord este numărul de etichete cu verdicte la fel împărțit la numărul de etichete verificate de cel puțin două persoane. Nu este un test statistic și nu corectează pentru acordul întâmplător.</p>
       <h4>Raportul PDF</h4>

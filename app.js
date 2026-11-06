@@ -901,6 +901,15 @@ function destroyNetwork3D(divId) {
   if (box) { box.innerHTML = ''; box.classList.remove('net3d'); }
 }
 
+// Zoom in / out by moving the camera along the line to the centre of the scene.
+function zoomNetwork3D(graph, factor) {
+  const target = graph.controls().target;
+  const p = graph.camera().position;
+  const dist = Math.hypot(p.x - target.x, p.y - target.y, p.z - target.z) || 1;
+  const k = Math.min(1500, Math.max(30, dist * factor)) / dist;
+  graph.cameraPosition({ x: target.x + (p.x - target.x) * k, y: target.y + (p.y - target.y) * k, z: target.z + (p.z - target.z) * k }, target, 250);
+}
+
 function renderNetwork3D(divId, nodeWeights, edgeWeights, title, onNodeClick) {
   const box = document.getElementById(divId);
   destroyNetwork3D(divId);
@@ -952,6 +961,24 @@ function renderNetwork3D(divId, nodeWeights, edgeWeights, title, onNodeClick) {
   if (memory && memory.camera) graph.cameraPosition(memory.camera);
   else graph.cameraPosition({ x: 0, y: 0, z: 260 });
 
+  // zoom buttons in the corner of the scene (the mouse wheel and a two-finger pinch also zoom)
+  const zoomBox = document.createElement('div');
+  zoomBox.className = 'net3d-zoom';
+  zoomBox.innerHTML = `
+    <button type="button" data-zoom="in" title="Apropie (zoom in)" aria-label="Zoom in">+</button>
+    <button type="button" data-zoom="out" title="Depărtează (zoom out)" aria-label="Zoom out">−</button>
+    <button type="button" data-zoom="fit" title="Potrivește tot graful în ecran" aria-label="Potrivește în ecran">⤢</button>`;
+  zoomBox.addEventListener('click', ev => {
+    const b = ev.target.closest('button[data-zoom]');
+    if (!b) return;
+    if (b.dataset.zoom === 'in') zoomNetwork3D(graph, 0.7);
+    else if (b.dataset.zoom === 'out') zoomNetwork3D(graph, 1 / 0.7);
+    else graph.zoomToFit(600, 70);
+  });
+  box.appendChild(zoomBox);
+  graph.controls().minDistance = 30;
+  graph.controls().maxDistance = 1500;
+
   // names next to the biggest nodes (HTML labels projected from 3D)
   const labelLayer = document.createElement('div');
   labelLayer.className = 'net3d-labels';
@@ -1000,7 +1027,11 @@ function renderNetworkToolbar() {
     <button type="button" data-net-mode="2d" class="${networkState.mode === '2d' ? 'active' : ''}">Vedere 2D</button>
     ${networkState.mode === '3d' ? `
       <label><input type="checkbox" id="net-autorotate" ${networkState.autoRotate ? 'checked' : ''}> Rotire automată</label>
-      <button type="button" id="net-reset">Eliberează nodurile</button>` : ''}`;
+      <button type="button" id="net-reset">Eliberează nodurile</button>
+      <button type="button" data-net-zoom="in" title="Apropie toate rețelele">Zoom +</button>
+      <button type="button" data-net-zoom="out" title="Depărtează toate rețelele">Zoom −</button>
+      <button type="button" data-net-zoom="fit" title="Potrivește rețelele în ecran">Potrivește</button>
+      <span class="net-hint">Roata mausului sau două degete = zoom · trage fundalul = rotește · trage un nod = îl mută</span>` : ''}`;
   bar.querySelectorAll('button[data-net-mode]').forEach(b => b.addEventListener('click', () => {
     networkState.mode = b.dataset.netMode;
     renderRetele();
@@ -1010,6 +1041,12 @@ function renderNetworkToolbar() {
     networkState.autoRotate = rot.checked;
     Object.values(net3d).forEach(n => { n.graph.controls().autoRotate = rot.checked; });
   });
+  bar.querySelectorAll('button[data-net-zoom]').forEach(b => b.addEventListener('click', () => {
+    Object.values(net3d).forEach(n => {
+      if (b.dataset.netZoom === 'fit') n.graph.zoomToFit(600, 70);
+      else zoomNetwork3D(n.graph, b.dataset.netZoom === 'in' ? 0.7 : 1 / 0.7);
+    });
+  }));
   const reset = document.getElementById('net-reset');
   if (reset) reset.addEventListener('click', () => {
     Object.values(net3d).forEach(n => {

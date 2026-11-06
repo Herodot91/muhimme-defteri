@@ -589,6 +589,7 @@ function renderCollaborationTool(box) {
     return `<tr><td>${describe(key)}</td><td>${esc(labelOfId(d.id))}</td>${cells}<td>${adopt}</td></tr>`;
   }).join('');
   box.innerHTML = `
+    <div class="rv-aim"><b>La ce folosește?</b> Aplicația găsește singură locurile în hükümuri, dar poate greși. Aici mai mulți cercetători controlează aceleași rezultate, iar aplicația arată <b>unde sunt de acord și unde nu</b>: așa știm cât ne putem baza pe etichete și ce trebuie discutat. Nimic nu se trimite pe internet. <button type="button" class="rv-linkish" data-explain="collab">Explicație pe înțelesul tuturor, cu exemplu</button></div>
     <p class="rv-help">Corecțiile tale rămân în acest browser. Fiecare cercetător le exportă într-un fișier, iar aici se pot încărca fișierele colegilor ca să se vadă unde verdictele diferă. <button type="button" class="rv-linkish" data-explain="collab">Cum se calculează acordul</button></p>
     <div class="rv-controls">
       <label>Numele tău <input type="text" id="rv-name" value="${escAttr(review.annotator)}" maxlength="40" placeholder="ex. Ana"></label>
@@ -681,7 +682,8 @@ const HISTORY = [
   ['6 nov. 2026', 'Rețelele sunt în 3D: se rotesc și se măresc, iar nodurile se mută cu mausul și rămân fixate unde le lași; clic pe un nod arată hükümurile lui. Vederea 2D rămâne disponibilă. Nu există niciun model de învățare automată: selecția se face prin reguli și prin verificările cercetătorului.'],
   ['6 nov. 2026 (seara)', 'Fiecare cifră și metodă are o explicație la un clic (căutare simplă, motor actual, după corecții, teste, învățare automată). Verificarea colaborativă are grafice pe pagină și un raport PDF cu grafice. Clasificarea nu folosește învățare automată; OCR-ul și traducerea o folosesc, iar explicația spune exact unde.'],
   ['6 nov. 2026 (noaptea)', 'Prototip: acordul pe etichetă, precizia și celelalte grafice se pot încerca pe date demonstrative (fictive), fără volum și fără colegi reali, cu fișiere demonstrative descărcabile în formatul real de export și un raport PDF demonstrativ. Fiecare grafic are o explicație la un clic.'],
-  ['6 nov. 2026 (ultima)', 'Pagina principală arată acum ultimele trei actualizări, cu un buton spre tot istoricul modificărilor.']
+  ['6 nov. 2026 (ultima)', 'Pagina principală arată acum ultimele trei actualizări, cu un buton spre tot istoricul modificărilor.'],
+  ['6 nov. 2026 (după-amiaza târzie)', 'Rețelele 3D au butoane de zoom (+, −, potrivire în ecran), pe lângă roata mausului. „Verificare colaborativă” spune pe înțelesul tuturor la ce folosește, cu un exemplu. Metodologia începe cu un răspuns scurt: clasificarea este făcută cu reguli în JavaScript, nu cu Python și nu cu învățare automată.']
 ];
 
 const RESULT_CHANGES = [
@@ -764,6 +766,7 @@ function renderFutureTool(box) {
       <li><b>Straturi de hartă pentru mai multe perioade.</b> Parțial: există două hărți (1483 și 1686).</li>
       <li><button type="button" class="rv-linkish" data-explain="ml">Model de învățare automată pentru selecție.</button> Nu există. Etichetarea folosește reguli (cuvinte-cheie, registru de nume, excluderi), iar verdictele Corect / Greșit și eșantionul verificat de mână ar putea deveni date de antrenare. Dă clic pe titlu ca să vezi unde se folosește și unde nu învățarea automată.</li>
       <li><button type="button" class="rv-linkish" data-explain="tests">Teste automate.</button> Funcțional pentru motor: ${TEST_SUITES.reduce((n, s) => n + s[1], 0)} de teste obișnuite de cod (pytest, fără model ML) verifică motorul, logica de verificare, citirea volumelor 5 și 91 și rețelele. Parțial pentru volume: folosesc fragmente scurte inventate după tiparele acelor volume, nu volumele întregi. Dă clic pe titlu pentru lista completă.</li>
+      <li><button type="button" class="rv-linkish" data-explain="method">Cum se clasifică automat?</button> Cu reguli în JavaScript (liste de cuvinte și expresii regulate), nu cu Python și nu cu un model de învățare automată; Python rulează doar testele. Dă clic pe titlu pentru răspunsul scurt, algoritmul pas cu pas și un tester pe textul tău.</li>
     </ul>`;
   const area = box.querySelector('#rv-sample-area');
   const drawSample = () => {
@@ -919,11 +922,11 @@ function collabStatusHtml() {
   const text = !sets.length ? 'Nicio verificare încă.'
     : !cmp ? 'O singură persoană a verificat etichete; importă fișierul unui coleg pentru comparație.'
     : `${sets.length} cercetători${sets.some(s => /^Demonstrativ/.test(s.name)) ? ' (date demonstrative, fictive)' : ''}, ${cmp.judged} etichete comparate, acord ${pct(cmp.judged ? cmp.agree / cmp.judged : null)}.`;
-  return `<p class="fx-collab"><b>Verificare colaborativă:</b> ${esc(text)}
+  return `<p class="fx-collab"><button type="button" class="rv-linkish" data-explain="collab"><b>Verificare colaborativă</b></button><b>:</b> ${esc(text)}
     ${sets.length ? '' : '<button type="button" class="fx-link" data-fx-demo>Vezi un exemplu demonstrativ</button>'}
     <button type="button" class="fx-link" data-fx-report>Raport PDF cu grafice</button>
     <button type="button" class="fx-link" data-fx-tool="collaboration">Deschide comparația</button>
-    <button type="button" class="fx-link" data-explain="collab">Cum se calculează</button>
+    <button type="button" class="fx-link" data-explain="collab">La ce folosește și cum se calculează</button>
     <span id="fx-report-status" class="rv-meta" role="status"></span></p>`;
 }
 
