@@ -95,7 +95,8 @@ const EXPLAIN = {
       <h4>Teme și cuvinte-cheie</h4>
       ${themeRulesHtml()}
       <h4>Limite</h4>
-      <p>Regulile nu înțeleg contextul: un cuvânt scris la fel dar cu alt sens poate fi numărat. De aceea fiecare etichetă are o dovadă pe care o poți verifica, iar potrivirile pe fragment de cuvânt sunt marcate „de verificat”.</p>`,
+      <p>Regulile nu înțeleg contextul: un cuvânt scris la fel dar cu alt sens poate fi numărat. De aceea fiecare etichetă are o dovadă pe care o poți verifica, iar potrivirile pe fragment de cuvânt sunt marcate „de verificat”.</p>
+      <p class="rv-help"><button type="button" class="rv-linkish" data-explain="method">Metodologia detaliată pentru istorici, cu un test pe orice text</button></p>`,
   },
   corrected: {
     title: 'După corecții',
@@ -127,10 +128,56 @@ const EXPLAIN = {
       <p><b>Cuvânt întreg</b>: termenul găsit nu este lipit de alte litere (de exemplu „Eflâk’e”: apostroful nu este literă).</p>
       <p><b>Potrivire parțială</b>: termenul este lipit de litere, deci poate fi o formă flexionată („Eflake”) sau o parte dintr-un alt cuvânt („Kırkkilise”). Merită verificată cu butoanele Corect / Greșit.</p>`,
   },
+  method: {
+    title: 'Metodologie: cum se face clasificarea automată',
+    after: dlg => {
+      const box = dlg.querySelector('#method-try');
+      const out = dlg.querySelector('#method-result');
+      if (!box || !out) return;
+      const run = () => { out.innerHTML = methodTryHtml(box.value); };
+      box.addEventListener('input', run);
+      run();
+    },
+    html: () => `
+      <p class="ex-ml no"><b>Model de învățare automată: nu.</b> Clasificarea automată este un algoritm de reguli: liste de nume și cuvinte-cheie, transformate în expresii regulate. Nu există model antrenat, date de antrenare, scoruri sau probabilități.</p>
+      <h4>Ce cod s-a scris</h4>
+      <ul>
+        <li><b>JavaScript, în browser</b>: fișierul <code>engine.js</code> (citirea și împărțirea volumelor, clasificarea, dovezile, logica verificării). Aceasta este singura clasificare folosită de site. Nimic nu se trimite unui server.</li>
+        <li><b>Python</b>: (1) <code>muhimme_app.py</code>, prima versiune a aplicației (Streamlit, 9 august 2026), cu aceleași liste de cuvinte-cheie, dar fără regulile și corecțiile ulterioare, nefolosită acum de site; (2) testele (pytest), care rulează <code>engine.js</code> prin Node și verifică rezultatele.</li>
+        <li>Codul este public: <a href="https://github.com/Herodot91/muhimme-defteri/blob/main/engine.js" target="_blank" rel="noopener">engine.js</a>. Funcțiile principale sunt <code>flexiblePattern</code>, <code>termRegex</code> și <code>classifyText</code>.</li>
+      </ul>
+      <h4>Algoritmul, pas cu pas</h4>
+      <ol>
+        <li><b>Textul</b> se extrage din PDF (PDF.js). La volumele scanate (volumul 91) se folosește OCR, singurul loc din procesul de selecție în care intervine învățarea automată, și doar pentru a citi literele.</li>
+        <li><b>Împărțirea în hükümuri</b> se face cu expresii regulate (număr, destinatar, „:”, „Yazıldı” sau, la volumul 5, rândurile de pe pagină și listele de numere; la volumul 91, rândurile cuprinsului).</li>
+        <li><b>Textul analizat</b> pentru fiecare hüküm: rezumat plus primele 2500 de caractere din text (volumul 3); destinatar plus rezumat (volumul 5); rezumatul din cuprins (volumul 91).</li>
+        <li>Fiecare <b>etichetă</b> (regiune, cetate, temă) are o <b>listă de termeni</b>, de exemplu Eflak: <code>eflak</code>. Fiecare termen devine o <b>expresie regulată</b>: fiecare literă este înlocuită cu variantele ei (<code>a → [aàâ]</code>, <code>i → [iıİIî]</code>, <code>s → [sş]</code>, <code>g → [gğ]</code> …) și între litere se admit spații, pentru că PDF-urile scriu uneori „Bo ğ dan”. Exemplu real: <code>eflak</code> devine <code>${esc(flexiblePattern('eflak'))}</code>.</li>
+        <li><b>Regula de decizie</b>: dacă <b>oricare</b> termen din listă se potrivește oriunde în text (fără distincție între majuscule și minuscule), eticheta se atribuie. Este un „SAU” logic. Nu există scor, pondere sau prag.</li>
+        <li><b>Excepții scrise de mână</b>: <code>Kili</code> trebuie să fie cuvânt întreg cu i punctat (<code>${esc(termRegex('kili').source)}</code>), ca să nu prindă <em>kilise</em>, <em>Kırkkilise</em>, <em>kılıç</em>; <code>Bender</code> trebuie scris cu majusculă, ca cuvânt întreg și fără „-i” după (<code>${esc(termRegex('bender').source)}</code>), pentru că „bender” înseamnă și „port”.</li>
+        <li><b>Dovada</b>: pentru fiecare etichetă se păstrează termenul găsit, locul și dacă a fost cuvânt întreg sau potrivire parțială (prima apariție ca cuvânt întreg, altfel prima apariție).</li>
+        <li><b>Verdictele cercetătorului</b> (Corect / Greșit / adăugat) se aplică peste etichetele automate; toate cifrele din aplicație se calculează din etichetele corectate.</li>
+      </ol>
+      <h4>Încearcă motorul pe un text</h4>
+      <p>Scrie sau lipește un text și vezi exact ce etichete ar primi și de ce. Rezultatul este calculat chiar acum de codul de mai sus.</p>
+      <textarea id="method-try" class="ex-try" rows="3" aria-label="Text de încercat">Kili Kalesi'ne ve Eflâk voyvodasına yazıldı; kilise yapıldı, Basra benderine kılıç gönderildi.</textarea>
+      <div id="method-result" class="ex-try-result" aria-live="polite"></div>
+      <h4>Ce nu face</h4>
+      <ul>
+        <li>Nu înțelege sensul sau contextul: dacă un cuvânt scris la fel are alt sens și nu este acoperit de o excepție scrisă de mână, va fi numărat.</li>
+        <li>Nu găsește un loc scris sub un nume care nu este în registru (poți adăuga variante în actualizarea 03).</li>
+        <li>Temele sunt cele mai slabe: cuvintele-cheie sunt scurte (<code>bac</code>, <code>kale</code>, <code>sefer</code>) și apar des în alte cuvinte; multe potriviri sunt marcate „de verificat”.</li>
+      </ul>
+      <h4>Cine a ales listele de cuvinte</h4>
+      <p>Listele pentru regiuni, cetăți și primele patru teme (Comerț, Administrație, Militar / Securitate, Diplomație) sunt din prima versiune a aplicației. Tema Anexare / Istimalet, variantele din registru și excluderile au fost adăugate ulterior, după verificări pe volumele reale („ilhak” și „himaye” au fost scoase pentru că dădeau potriviri fără legătură). <b>Listele nu au fost validate de istorici.</b> Este un punct de revizuit: orice istoric poate vedea listele aici (butonul „Motor actual”) și le poate corecta prin verdicte și variante.</p>
+      <h4>Reproductibilitate</h4>
+      <p>Același text dă mereu același rezultat. Versiunea motorului (${esc(ENGINE_VERSION)}) se înscrie în exporturi. Comportamentul este fixat de teste automate (vezi „Teste automate”).</p>
+      <p class="rv-help"><button type="button" class="rv-linkish" data-explain="ml">Unde se folosește învățarea automată în aplicație</button> · <button type="button" class="rv-linkish" data-explain="engine">Listele de termeni, pe locuri și teme</button></p>`,
+  },
   ml: {
     title: 'Învățare automată: unde se folosește și unde nu',
     html: () => `
       <p class="ex-ml no"><b>Clasificarea (regiuni, cetăți, teme) nu folosește învățare automată.</b> Nu există un model antrenat pentru selecție.</p>
+      <p class="rv-help"><button type="button" class="rv-linkish" data-explain="method">Cum se face clasificarea, pas cu pas</button></p>
       <div class="rv-table-wrap"><table class="rv-table"><thead><tr><th>Componentă</th><th>Cum funcționează</th><th>Învățare automată?</th></tr></thead><tbody>
         <tr><td>Clasificarea în regiuni, cetăți și teme</td><td>Liste de nume, cuvinte-cheie, expresii regulate, excluderi</td><td><b>Nu</b></td></tr>
         <tr><td>Împărțirea în hükümuri, numere, date, index</td><td>Expresii regulate și reguli de aliniere pe pagină</td><td><b>Nu</b></td></tr>
@@ -239,6 +286,22 @@ const EXPLAIN = {
   },
 };
 
+// Live result of the real engine on a text typed in the methodology dialog.
+function methodTryHtml(text) {
+  const t = String(text || '').slice(0, 3000);
+  if (!t.trim()) return '<p class="rv-none">Scrie un text.</p>';
+  const c = classifyText(t, review.variants);
+  const naive = classifyNaive(t);
+  const labels = [...c.regions, ...c.fortresses, ...c.themes];
+  const naiveLabels = [...naive.regions, ...naive.fortresses];
+  const onlyNaive = naiveLabels.filter(l => !labels.includes(l));
+  const items = c.evidence.map(ev => `<li><b>${esc(ev.label)}</b> <span class="rv-term">(${KIND_NAME[ev.kind]}; termen: ${esc(ev.term)})</span>
+    <span class="rv-tag ${ev.wholeWord ? 'whole' : 'partial'}">${ev.wholeWord ? 'cuvânt întreg' : 'potrivire parțială'}</span>
+    <div class="rv-snippet">${snippetHtml(t, ev)}</div></li>`).join('');
+  return `${items ? `<ul class="ex-list">${items}</ul>` : '<p class="rv-none">Nicio etichetă pentru acest text.</p>'}
+    ${onlyNaive.length ? `<p class="rv-help"><b>Căutarea simplă ar fi numărat în plus:</b> ${onlyNaive.map(esc).join(', ')} (potriviri pe fragment de cuvânt, respinse de reguli).</p>` : ''}`;
+}
+
 function protoNote() {
   return '<p class="rv-help"><button type="button" class="rv-linkish" data-explain="proto">Despre datele demonstrative din prototip</button></p>';
 }
@@ -264,6 +327,7 @@ function showExplanation(key) {
   dlg.querySelector('#explain-body').innerHTML = item.html();
   if (!dlg.open) dlg.showModal();
   dlg.querySelector('#explain-body').scrollTop = 0;
+  if (item.after) item.after(dlg);
 }
 
 document.addEventListener('click', ev => {

@@ -373,7 +373,8 @@
   .ex-body p { margin: 0 0 10px; }
   .ex-body ul { margin: 0 0 10px; padding-left: 20px; }
   .ex-body li { margin-bottom: 6px; }
-  .ex-body code { background: #efe6cf; padding: 1px 6px; border-radius: 4px; font-size: 13px; }
+  .ex-body code { background: #efe6cf; padding: 1px 6px; border-radius: 4px; font-size: 13px; overflow-wrap: anywhere; }
+  .ex-body { overflow-x: hidden; }
   .ex-list { list-style: none; padding-left: 0; }
   .ex-ml { padding: 10px 14px; border-radius: 8px; margin: 12px 0 4px; font-size: 15px; }
   .ex-ml.no { background: #e3ebd9; border: 1px solid #9bb08a; color: #26391c; }
@@ -381,6 +382,10 @@
 
   .rv-proto { background: #f1e9d3; border: 1px dashed var(--line-strong); border-radius: 10px; padding: 12px 16px; margin: 12px 0; }
   .rv-proto > p { margin: 0 0 4px; font-size: 14px; line-height: 1.6; }
+
+  .ex-try { width: 100%; font-family: var(--serif); font-size: 16px; line-height: 1.5; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 8px; background: #fffdf6; color: var(--ink); resize: vertical; }
+  .ex-try-result { margin: 10px 0 4px; }
+  .ex-body ol { margin: 0 0 10px; padding-left: 22px; }
 
   .status { font-size: 0.85rem; padding: 6px 0; }
   .status.ok { color: var(--accent-2); }
