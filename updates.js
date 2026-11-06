@@ -575,6 +575,7 @@ function renderCollaborationTool(box) {
     const e = byKey.get(key);
     if (e) return `#${esc(e.num)} — ${esc(e.recipient)} <span class="rv-meta">p. ${esc(e.page)}</span>`;
     const k = splitKey(key);
+    if (/^Volum demonstrativ/.test(k.volume)) return `Hüküm demonstrativ #${esc(k.num)} <span class="rv-meta">(fictiv)</span>`;
     return `#${esc(k.num)} <span class="rv-meta">${esc(k.volume)} (volum neîncărcat)</span>`;
   };
   const colleaguesHtml = review.colleagues.map((c, i) => `<li><b>${esc(c.name)}</b> — ${Object.keys(c.items).length} hükümuri revizuite
@@ -597,12 +598,23 @@ function renderCollaborationTool(box) {
     </div>
     <div class="rv-controls">
       <button type="button" class="rv-btn primary" data-act="report">Descarcă raportul PDF cu grafice</button>
-      ${hasDemo ? '<button type="button" class="rv-btn" data-act="rm-demo">Elimină colegii demonstrativi</button>' : (hasVolume() ? '<button type="button" class="rv-btn" data-act="demo">Încearcă cu doi colegi demonstrativi (date fictive)</button>' : '')}
+    </div>
+    <div class="rv-proto">
+      <p><b>Prototip.</b> Acordul pe etichetă, precizia și celelalte grafice se pot încerca pe date demonstrative (fictive), fără volum și fără colegi reali. <button type="button" class="rv-linkish" data-explain="proto">Ce sunt datele demonstrative</button></p>
+      <div class="rv-controls">
+        ${hasDemo ? '<button type="button" class="rv-btn" data-act="rm-demo">Elimină exemplul demonstrativ</button>' : '<button type="button" class="rv-btn primary" data-act="demo">Încarcă exemplul demonstrativ (3 cercetători fictivi)</button>'}
+        <button type="button" class="rv-btn" data-act="demo-report">Raport PDF demonstrativ</button>
+        <button type="button" class="rv-btn" data-act="demo-file" data-i="0">Fișier demonstrativ A</button>
+        <button type="button" class="rv-btn" data-act="demo-file" data-i="1">Fișier demonstrativ B</button>
+        <button type="button" class="rv-btn" data-act="demo-file" data-i="2">Fișier demonstrativ C</button>
+      </div>
+      <p class="rv-help">Fișierele demonstrative au formatul real de export: descarcă-le și importă-le mai sus ca să vezi tot fluxul.</p>
     </div>
     <div id="rv-collab-msg" class="rv-msg" role="status"></div>
     ${countersHtml()}
     <h4 class="rv-sub">Fișiere importate</h4>
     ${colleaguesHtml ? `<ul class="rv-list">${colleaguesHtml}</ul>` : '<p class="rv-none">Niciun fișier importat.</p>'}
+    ${hasDemo ? '<p class="rv-warn">Prototip: comparația de mai jos folosește date demonstrative (fictive), nu verdicte reale.</p>' : ''}
     <h4 class="rv-sub">Comparare</h4>
     ${withData.length < 2
       ? '<p class="rv-none">Comparația apare când cel puțin două persoane (tu și un coleg, sau doi colegi) au verificat aceleași etichete.</p>'
@@ -632,7 +644,9 @@ function renderCollaborationTool(box) {
     if (act === 'export-json') exportAnnotationsJson();
     else if (act === 'export-csv') exportAnnotationsCsv();
     else if (act === 'report') downloadCollabReport(box.querySelector('#rv-collab-msg'));
-    else if (act === 'demo') { addDemoColleagues(); renderCollaborationTool(box); box.querySelector('#rv-collab-msg').textContent = 'Au fost adăugați doi colegi fictivi, doar ca să vezi comparația. Nu sunt date reale și pot fi eliminați.'; renderEffects(); }
+    else if (act === 'demo') { addDemoColleagues(); renderCollaborationTool(box); box.querySelector('#rv-collab-msg').textContent = 'Au fost adăugați trei cercetători fictivi, doar ca să vezi comparația. Nu sunt date reale și pot fi eliminați.'; renderEffects(); }
+    else if (act === 'demo-report') downloadCollabReport(box.querySelector('#rv-collab-msg'), { sets: currentDemoSets() });
+    else if (act === 'demo-file') { exportDemoFile(parseInt(btn.dataset.i, 10)); box.querySelector('#rv-collab-msg').textContent = 'Fișierul demonstrativ a fost descărcat. Importă-l cu „Importă fișiere de la colegi”.'; }
     else if (act === 'rm-demo') { removeDemoColleagues(); renderCollaborationTool(box); renderEffects(); }
     else if (act === 'rm-colleague') {
       review.colleagues.splice(parseInt(btn.dataset.i, 10), 1);
@@ -648,7 +662,7 @@ function renderCollaborationTool(box) {
       box.querySelector('#rv-collab-msg').textContent = 'Verdictul a fost adoptat.';
     }
   };
-  if (!hasVolume() && msg) msg.textContent = 'Poți exporta și importa corecții și fără un volum încărcat; adoptarea verdictelor cere volumul încărcat.';
+  if (!hasVolume() && msg) msg.textContent = 'Poți încerca totul pe date demonstrative și fără un volum încărcat; adoptarea verdictelor reale cere volumul încărcat.';
 }
 
 // ---------------------------------------------------------------------
@@ -666,6 +680,7 @@ const HISTORY = [
   ['4 nov. 2026', 'Volume noi: 5 (doar rezumate și index) și 91 (pagini scanate, citite prin OCR). Indexul tipărit devine răspuns de control. Regulă nouă pentru Bender: portul (cuvânt comun) nu mai este numărat ca cetate.'],
   ['6 nov. 2026', 'Rețelele sunt în 3D: se rotesc și se măresc, iar nodurile se mută cu mausul și rămân fixate unde le lași; clic pe un nod arată hükümurile lui. Vederea 2D rămâne disponibilă. Nu există niciun model de învățare automată: selecția se face prin reguli și prin verificările cercetătorului.'],
   ['6 nov. 2026 (seara)', 'Fiecare cifră și metodă are o explicație la un clic (căutare simplă, motor actual, după corecții, teste, învățare automată). Verificarea colaborativă are grafice pe pagină și un raport PDF cu grafice. Clasificarea nu folosește învățare automată; OCR-ul și traducerea o folosesc, iar explicația spune exact unde.'],
+  ['7 nov. 2026', 'Prototip: acordul pe etichetă, precizia și celelalte grafice se pot încerca pe date demonstrative (fictive), fără volum și fără colegi reali, cu fișiere demonstrative descărcabile în formatul real de export și un raport PDF demonstrativ. Fiecare grafic are o explicație la un clic.'],
 ];
 
 const RESULT_CHANGES = [
@@ -703,7 +718,7 @@ function accuracyTableHtml() {
   if (!rows.length) return '<p class="rv-none">Nicio etichetă verificată încă. Verifică hükümuri din eșantion cu butoanele Corect / Greșit.</p>';
   let ok = 0, no = 0;
   rows.forEach(r => { ok += r.ok; no += r.no; });
-  return `<div class="rv-table-wrap"><table class="rv-table"><thead><tr><th>Etichetă</th><th>Corecte</th><th>Greșite</th><th>Adăugate (lipsă)</th><th>Precizie</th><th>Acoperire estimată</th></tr></thead><tbody>
+  return `<div class="rv-table-wrap"><table class="rv-table"><thead><tr><th>Etichetă</th><th>Corecte</th><th>Greșite</th><th>Adăugate (lipsă)</th><th><button type="button" class="rv-linkish" data-explain="precision">Precizie</button></th><th><button type="button" class="rv-linkish" data-explain="recall">Acoperire estimată</button></th></tr></thead><tbody>
     ${rows.map(r => `<tr><td>${esc(labelOfId(r.id))} <span class="rv-meta">${KIND_NAME[kindOfId(r.id)]}</span></td><td>${r.ok}</td><td>${r.no}</td><td>${r.added}</td><td>${pct(r.precision)}</td><td>${pct(r.recall)}</td></tr>`).join('')}
     <tr class="rv-total"><td>Total</td><td>${ok}</td><td>${no}</td><td></td><td>${pct(ok + no ? ok / (ok + no) : null)}</td><td></td></tr>
   </tbody></table></div>
@@ -847,7 +862,8 @@ function renderEffects() {
   if (!box) return;
   if (!hasVolume()) {
     box.innerHTML = `<div class="fx-head"><h2>Efectul actualizărilor asupra mențiunilor</h2></div>
-      <p class="fx-empty">Încarcă un volum PDF și vezi aici, pentru fiecare regiune și cetate, cum se schimbă numărul de mențiuni între căutarea simplă din prima versiune, motorul actual și corecțiile tale.</p>`;
+      <p class="fx-empty">Încarcă un volum PDF și vezi aici, pentru fiecare regiune și cetate, cum se schimbă numărul de mențiuni între căutarea simplă din prima versiune, motorul actual și corecțiile tale.</p>
+      ${collabStatusHtml()}`;
     return;
   }
   const rows = NAME_REGISTRY.map(p => ({ p, c: placeCounts(p.label, p.type) }))
@@ -900,8 +916,9 @@ function collabStatusHtml() {
   const cmp = sets.length >= 2 ? compareAnnotators(sets) : null;
   const text = !sets.length ? 'Nicio verificare încă.'
     : !cmp ? 'O singură persoană a verificat etichete; importă fișierul unui coleg pentru comparație.'
-    : `${sets.length} cercetători, ${cmp.judged} etichete comparate, acord ${pct(cmp.judged ? cmp.agree / cmp.judged : null)}.`;
+    : `${sets.length} cercetători${sets.some(s => /^Demonstrativ/.test(s.name)) ? ' (date demonstrative, fictive)' : ''}, ${cmp.judged} etichete comparate, acord ${pct(cmp.judged ? cmp.agree / cmp.judged : null)}.`;
   return `<p class="fx-collab"><b>Verificare colaborativă:</b> ${esc(text)}
+    ${sets.length ? '' : '<button type="button" class="fx-link" data-fx-demo>Vezi un exemplu demonstrativ</button>'}
     <button type="button" class="fx-link" data-fx-report>Raport PDF cu grafice</button>
     <button type="button" class="fx-link" data-fx-tool="collaboration">Deschide comparația</button>
     <button type="button" class="fx-link" data-explain="collab">Cum se calculează</button>
@@ -913,6 +930,7 @@ document.addEventListener('click', ev => {
   if (open) { openTool('evidence', open.dataset.fxOpen); return; }
   const tool = ev.target.closest('[data-fx-tool]');
   if (tool) { openTool(tool.dataset.fxTool); return; }
+  if (ev.target.closest('[data-fx-demo]')) { addDemoColleagues(); renderEffects(); openTool('collaboration'); return; }
   if (ev.target.closest('[data-fx-report]')) { downloadCollabReport(document.getElementById('fx-report-status')); return; }
   if (ev.target.closest('[data-fx-undo]') && lastAction) {
     setVerdictExact(lastAction.key, lastAction.id, lastAction.prev);

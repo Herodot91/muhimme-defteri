@@ -8,6 +8,7 @@ const TEST_SUITES = [
   ['test_summary_volumes.py', 29, 'Citirea volumelor „Özet ve İndeks” (volumul 5): numere de pe pagină, note de subsol, date exacte, indexul tipărit, regula pentru Bender.'],
   ['test_contents_ocr.py', 16, 'Citirea cuprinsului unui volum scanat (volumul 91) după OCR: numere citite greșit, numere sărite, linii pierdute.'],
   ['test_network.py', 4, 'Pregătirea nodurilor și legăturilor pentru rețelele 3D.'],
+  ['test_demo.py', 7, 'Datele demonstrative (fictive) din prototip: fixe, realiste, cu formatul real de fișier.'],
   ['test_docs.py', 2, 'Verifică faptul că numărul de teste din această explicație este cel real și că fiecare explicație din aplicație există.'],
 ];
 
@@ -163,6 +164,64 @@ const EXPLAIN = {
         <p>Cifrele de mai sus sunt cele de la versiunea ${esc(ENGINE_VERSION)}. Ele se pot rula pe calculator cu <code>python -m pytest</code> în dosarul proiectului.</p>`;
     },
   },
+  agreement: {
+    title: 'Acord pe etichetă',
+    html: () => `
+      ${mlBadge(false, 'Este o numărătoare a verdictelor a doi sau mai mulți cercetători.')}
+      <h4>Ce arată</h4>
+      <p>Pentru fiecare etichetă (de exemplu „Kili” sau „Administrație”) se numără etichetele atribuite unor hükümuri pe care au dat verdict cel puțin două persoane. Bara verde = verdictele au fost la fel (toți au confirmat sau toți au respins); bara roșie = verdictele au fost diferite.</p>
+      <h4>Cum se calculează</h4>
+      <p><b>Acord</b> = etichete cu verdicte la fel ÷ etichete verificate de cel puțin două persoane. Exemplu: dacă A confirmă eticheta „Kili” la un hüküm și B o respinge, e un dezacord; dacă amândoi o confirmă, e acord.</p>
+      <h4>Limite</h4>
+      <p>Nu este un test statistic și nu ține cont de acordul întâmplător. Cu puține etichete verificate procentul este nesigur.</p>
+      ${protoNote()}`,
+  },
+  precision: {
+    title: 'Precizia etichetelor, pe cercetător',
+    html: () => `
+      ${mlBadge(false, 'Este o fracție calculată din verdictele cercetătorului, nu o măsură a unui model.')}
+      <h4>Ce arată</h4>
+      <p>Cât din etichetele automate verificate de un cercetător le-a confirmat el.</p>
+      <h4>Cum se calculează</h4>
+      <p><b>Precizie</b> = etichete confirmate ÷ (confirmate + respinse). Exemplu: dacă un cercetător a verificat 10 etichete „Kili” și a confirmat 7, precizia este 70%. Etichetele fără verdict nu intră în calcul.</p>
+      <h4>Limite</h4>
+      <p>Spune cât de bune sunt etichetele <i>după părerea fiecărui cercetător</i>. Cercetători diferiți pot avea precizii diferite pentru aceeași etichetă: tocmai asta arată graficul. Pentru o estimare utilă a acurateței motorului trebuie un eșantion aleatoriu (actualizarea 06).</p>
+      ${protoNote()}`,
+  },
+  recall: {
+    title: 'Acoperire estimată',
+    html: () => `
+      ${mlBadge(false, 'Este o fracție calculată din verdicte.')}
+      <p><b>Acoperire estimată</b> = etichete confirmate ÷ (confirmate + etichete adăugate de cercetător ca lipsă). Arată cât din ce ar fi trebuit găsit a fost găsit de motor, în hükümurile verificate. Este doar o estimare: ce nu a observat nimeni nu apare nicăieri.</p>
+      ${protoNote()}`,
+  },
+  verdicts: {
+    title: 'Verdicte pe cercetător',
+    html: () => `
+      ${mlBadge(false, 'Sunt simple numărători.')}
+      <p>Pentru fiecare cercetător: câte etichete a <b>confirmat</b> (Corect), a <b>respins</b> (Greșit) și a <b>adăugat</b> ca lipsă. Arată cât a verificat fiecare și cât de critic a fost față de motor.</p>
+      ${protoNote()}`,
+  },
+  counts: {
+    title: 'Mențiuni pe loc',
+    html: () => `
+      ${mlBadge(false, 'Aceleași cifre ca în panoul de efect, ca grafic.')}
+      <p>Pentru fiecare loc: câte hükümuri numără căutarea simplă, motorul actual și cifra după corecții. Diferența dintre prima și ultima bară este efectul corectărilor motorului și al verdictelor.</p>`,
+  },
+  proto: {
+    title: 'Date demonstrative (prototip)',
+    html: () => `
+      ${mlBadge(false, 'Datele demonstrative sunt produse de o formulă fixă, nu de un model.')}
+      <h4>Ce sunt</h4>
+      <p>Aplicația este un prototip. Ca să poți vedea acordul pe etichetă, precizia și celelalte grafice fără colegi reali, poți încărca trei cercetători <b>fictivi</b> („Demonstrativ A, B, C”). Verdictele lor sunt calculate de o formulă fixă: A are încredere în potrivirile pe cuvânt întreg și le respinge pe cele parțiale; B și C se abat de la A în unele cazuri, deci acordul nu este nici 0%, nici 100%.</p>
+      <h4>Ce poți face</h4>
+      <ul>
+        <li><b>Încarcă exemplul demonstrativ</b>: apar graficele și comparația, calculate exact ca pentru date reale. Cu un volum încărcat, exemplul folosește hükümuri din volumul tău; fără volum, folosește hükümuri fictive.</li>
+        <li><b>Descarcă fișiere demonstrative</b>: trei fișiere JSON în formatul real de export, ca să încerci importul de la colegi.</li>
+        <li><b>Raport PDF demonstrativ</b>: raportul cu grafice, generat din datele fictive, fără să atingă verdictele tale.</li>
+      </ul>
+      <p>Datele fictive nu sunt verdicte reale și nu trebuie citate. Raportul și fișierele le marchează „fictiv”.</p>`,
+  },
   collab: {
     title: 'Verificare colaborativă',
     html: () => `
@@ -179,6 +238,10 @@ const EXPLAIN = {
       <p>Raportul cuprinde rezumatul, graficele (verdicte pe cercetător, acord pe etichetă, precizie pe cercetător, cifrele pe locuri) și tabelul dezacordurilor.</p>`,
   },
 };
+
+function protoNote() {
+  return '<p class="rv-help"><button type="button" class="rv-linkish" data-explain="proto">Despre datele demonstrative din prototip</button></p>';
+}
 
 function ensureExplainDialog() {
   let dlg = document.getElementById('explain-dialog');

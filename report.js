@@ -18,8 +18,8 @@ function shortLabel(id) {
 }
 
 // One entry per chart: used for the on-page charts and for the PDF.
-function collabChartSpecs() {
-  const sets = collabSets();
+function collabChartSpecs(given) {
+  const sets = given || collabSets();
   const specs = [];
   if (sets.length) {
     const sums = sets.map(s => annotatorSummary(s.items));
@@ -27,7 +27,7 @@ function collabChartSpecs() {
       type: 'bar', name, x: sets.map(s => s.name), y: sums.map(s => s[k]), marker: { color: CHART_COLORS[k] },
     }));
     specs.push({
-      key: 'verdicts', title: 'Verdicte pe cercetător', height: 380, traces,
+      key: 'verdicts', explain: 'verdicts', title: 'Verdicte pe cercetător', height: 380, traces,
       layout: { barmode: 'group', xaxis: { automargin: true }, yaxis: Object.assign({ title: 'etichete' }, integerYAxis(traces)) },
       caption: 'Câte etichete a confirmat (Corect), a respins (Greșit) și a adăugat ca lipsă fiecare cercetător.',
     });
@@ -37,7 +37,7 @@ function collabChartSpecs() {
     if (cmp.byLabel.length) {
       const labels = cmp.byLabel.map(r => shortLabel(r.id));
       specs.push({
-        key: 'agreement', title: 'Acord pe etichetă', height: Math.max(300, 150 + 34 * cmp.byLabel.length),
+        key: 'agreement', explain: 'agreement', title: 'Acord pe etichetă', height: Math.max(300, 150 + 34 * cmp.byLabel.length),
         traces: [
           { type: 'bar', orientation: 'h', name: 'Verdicte la fel', y: labels, x: cmp.byLabel.map(r => r.agree), marker: { color: CHART_COLORS.agree } },
           { type: 'bar', orientation: 'h', name: 'Verdicte diferite', y: labels, x: cmp.byLabel.map(r => r.judged - r.agree), marker: { color: CHART_COLORS.disagree } },
@@ -51,7 +51,7 @@ function collabChartSpecs() {
   const ids = [...new Set(rowsBy.flatMap(r => Object.keys(r)))].sort();
   if (ids.length) {
     specs.push({
-      key: 'precision', title: 'Precizia etichetelor, pe cercetător', height: 420,
+      key: 'precision', explain: 'precision', title: 'Precizia etichetelor, pe cercetător', height: 420,
       traces: sets.map((s, i) => ({
         type: 'bar', name: s.name, x: ids.map(shortLabel),
         y: ids.map(id => (rowsBy[i][id] ? Math.round(100 * rowsBy[i][id].precision) : null)),
@@ -68,7 +68,7 @@ function collabChartSpecs() {
         type: 'bar', name, x: rows.map(r => shortLabel('x:' + r.p.label)), y: rows.map(r => r.c[k]), marker: { color: CHART_COLORS[k] },
       }));
       specs.push({
-        key: 'counts', title: 'Mențiuni pe loc: căutare simplă, motor actual, după corecții', height: 420, traces,
+        key: 'counts', explain: 'counts', title: 'Mențiuni pe loc: căutare simplă, motor actual, după corecții', height: 420, traces,
         layout: { barmode: 'group', xaxis: { automargin: true }, yaxis: Object.assign({ title: 'hükümuri' }, integerYAxis(traces)) },
         caption: 'Aceleași hükümuri numărate în trei moduri. Diferența dintre prima și ultima coloană este efectul corectărilor motorului și al verdictelor cercetătorilor.',
       });
@@ -77,13 +77,13 @@ function collabChartSpecs() {
   return specs;
 }
 
-function renderCollabCharts(container) {
+function renderCollabCharts(container, given) {
   if (!container) return;
   container.innerHTML = '';
-  collabChartSpecs().forEach(spec => {
+  collabChartSpecs(given).forEach(spec => {
     const wrap = document.createElement('div');
     wrap.className = 'collab-chart';
-    wrap.innerHTML = `<h4 class="rv-sub">${esc(spec.title)}</h4><div class="chart-box"></div><p class="rv-help">${esc(spec.caption)}</p>`;
+    wrap.innerHTML = `<h4 class="rv-sub"><button type="button" class="rv-linkish" data-explain="${spec.explain}" aria-label="Explicație: ${escAttr(spec.title)}">${esc(spec.title)}</button></h4><div class="chart-box"></div><p class="rv-help">${esc(spec.caption)}</p>`;
     container.appendChild(wrap);
     const target = wrap.querySelector('.chart-box');
     target.style.minHeight = '0';
@@ -124,7 +124,7 @@ async function chartImage(spec) {
   return url;
 }
 
-async function buildCollabReport() {
+async function buildCollabReport(opts) {
   if (!window.jspdf) await loadScript('vendor/jspdf.umd.min.js');
   const { jsPDF } = window.jspdf;
   const [regular, bold] = await Promise.all([fontBase64('vendor/Roboto-Regular.ttf'), fontBase64('vendor/Roboto-Bold.ttf')]);
@@ -147,7 +147,7 @@ async function buildCollabReport() {
     y += lines.length * lh + gap;
   };
 
-  const sets = collabSets();
+  const sets = (opts && opts.sets) || collabSets();
   const demo = sets.some(s => /^Demonstrativ/.test(s.name));
   const volumes = state.volumes.map(v => v.name);
 
@@ -173,7 +173,7 @@ async function buildCollabReport() {
     }
   }
 
-  for (const spec of collabChartSpecs()) {
+  for (const spec of collabChartSpecs(sets)) {
     const h = CW * spec.height / 900;
     ensure(h + 18);
     para(spec.title, 12, 'bold', [35, 29, 20], 1.5);
@@ -192,18 +192,20 @@ async function buildCollabReport() {
       const shown = sets.slice(0, 4);
       const wNum = 14, wText = 62, wLabel = 36, wV = (CW - wNum - wText - wLabel) / shown.length;
       const drawHead = () => {
-        ensure(14);
-        doc.setFillColor(230, 220, 194); doc.rect(M, y, CW, 7, 'F');
+        ensure(18);
         doc.setFont('Roboto', 'bold'); doc.setFontSize(8.5); doc.setTextColor(35, 29, 20);
+        const heads = shown.map(s => doc.splitTextToSize(s.name, wV - 2).slice(0, 2));
+        const hh = heads.some(h => h.length > 1) ? 11 : 7;
+        doc.setFillColor(230, 220, 194); doc.rect(M, y, CW, hh, 'F');
         doc.text('Nr.', M + 1, y + 4.8); doc.text('Hüküm', M + wNum + 1, y + 4.8); doc.text('Etichetă', M + wNum + wText + 1, y + 4.8);
-        shown.forEach((s, i) => doc.text(doc.splitTextToSize(s.name, wV - 2)[0], M + wNum + wText + wLabel + i * wV + 1, y + 4.8));
-        y += 7;
+        heads.forEach((lines, i) => lines.forEach((l, k) => doc.text(l, M + wNum + wText + wLabel + i * wV + 1, y + 4.8 + k * 3.6)));
+        y += hh;
       };
       drawHead();
       cmp.disagreements.slice(0, 40).forEach(d => {
         const e = byKey.get(d.key);
         const sp = splitKey(d.key);
-        const desc = e ? (e.recipient ? `${e.recipient}: ` : '') + e.summary.replace(/\s+/g, ' ') : `${sp.volume} (volum neîncărcat)`;
+        const desc = e ? (e.recipient ? `${e.recipient}: ` : '') + e.summary.replace(/\s+/g, ' ') : (/^Volum demonstrativ/.test(sp.volume) ? 'Hüküm demonstrativ (fictiv)' : `${sp.volume} (volum neîncărcat)`);
         doc.setFont('Roboto', 'normal'); doc.setFontSize(8.5);
         const textLines = doc.splitTextToSize(desc, wText - 2).slice(0, 3);
         const labelLines = doc.splitTextToSize(labelOfId(d.id), wLabel - 2).slice(0, 3);
@@ -243,44 +245,51 @@ async function buildCollabReport() {
   return doc;
 }
 
-async function downloadCollabReport(statusEl) {
+async function downloadCollabReport(statusEl, opts) {
   const set = text => { if (statusEl) statusEl.textContent = text; };
   try {
     set('Se generează raportul PDF (grafice incluse)...');
-    const doc = await buildCollabReport();
-    doc.save('raport-verificare-colaborativa.pdf');
-    set('Raportul a fost generat: raport-verificare-colaborativa.pdf');
+    const doc = await buildCollabReport(opts);
+    const name = opts && opts.sets ? 'raport-demonstrativ.pdf' : 'raport-verificare-colaborativa.pdf';
+    doc.save(name);
+    set('Raportul a fost generat: ' + name);
   } catch (err) {
     console.error(err);
     set('Raportul nu a putut fi generat: ' + (err && err.message ? err.message : err));
   }
 }
 
-// Two clearly labelled fictitious colleagues, so the comparison can be seen
-// before real files arrive. They never touch the researcher's own verdicts.
+// Fictitious data for the prototype. With a volume loaded the pool is made of
+// its own orders (so the tables show real text); without one it is the fixed
+// demonstrative pool. Either way nothing here touches the researcher's verdicts.
+function volumeDemoPool() {
+  return reviewSource().slice(0, 40)
+    .map(e => ({ key: entryKey(e), items: evidenceFor(e).map(ev => ({ id: labelId(ev.kind, ev.label), strong: ev.wholeWord })) }))
+    .filter(p => p.items.length);
+}
+
+function currentDemoSets() {
+  const pool = hasVolume() ? volumeDemoPool() : [];
+  return demoSets(pool.length >= 10 ? pool : demoPool());
+}
+
 function addDemoColleagues() {
-  const pool = reviewSource().slice(0, 40);
-  const make = (name, shift) => {
-    const items = {};
-    pool.forEach((e, i) => {
-      const evs = evidenceFor(e);
-      if (!evs.length) return;
-      const verdicts = {};
-      evs.forEach((ev, j) => {
-        const base = ev.wholeWord ? 'ok' : 'no';
-        const flip = (i * 7 + j * 3 + shift) % 5 === 0;
-        verdicts[labelId(ev.kind, ev.label)] = flip ? (base === 'ok' ? 'no' : 'ok') : base;
-      });
-      items[entryKey(e)] = { verdicts, added: { regions: [], fortresses: [], themes: [] }, note: '' };
-    });
-    return { name, engineVersion: ENGINE_VERSION, importedAt: new Date().toISOString(), items: sanitizeAnnotations(items) };
-  };
   review.colleagues = review.colleagues.filter(c => !/^Demonstrativ/.test(c.name));
-  review.colleagues.push(make('Demonstrativ A fictiv', 0), make('Demonstrativ B fictiv', 2));
+  currentDemoSets().forEach(s => review.colleagues.push({ name: s.name, engineVersion: ENGINE_VERSION, importedAt: new Date().toISOString(), items: s.items }));
   persistReview();
 }
 
 function removeDemoColleagues() {
   review.colleagues = review.colleagues.filter(c => !/^Demonstrativ/.test(c.name));
   persistReview();
+}
+
+// A demonstrative file in the real export format, to try the import with.
+function exportDemoFile(index) {
+  const s = currentDemoSets()[index];
+  const payload = {
+    format: 'muhimme-annotations', version: 1, engineVersion: ENGINE_VERSION, annotator: s.name,
+    exportedAt: new Date().toISOString(), volumes: ['Volum demonstrativ (fictiv)'], items: s.items, variants: {},
+  };
+  downloadFile(`exemplu-demonstrativ-${'ABC'[index]}.json`, 'application/json', JSON.stringify(payload, null, 2));
 }

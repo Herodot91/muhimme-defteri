@@ -856,3 +856,45 @@ function accuracyByLabel(items) {
     recall: r.ok + r.added ? r.ok / (r.ok + r.added) : null,
   })).sort((a, b) => a.id.localeCompare(b.id));
 }
+
+// ---------------------------------------------------------------------
+// Demonstrative (fictitious) verification data for the prototype: three
+// researchers' verdicts over a fixed pool, produced by a deterministic formula,
+// so charts and files can be tried without a volume or real colleagues.
+// ---------------------------------------------------------------------
+
+const DEMO_NAMES = ['Demonstrativ A fictiv', 'Demonstrativ B fictiv', 'Demonstrativ C fictiv'];
+
+// A pool of fictitious orders: each has the labels the "engine" gave it and
+// whether the match was a whole word (the first researcher trusts those).
+function demoPool() {
+  const ids = [...allLabelIds()].sort();
+  const pool = [];
+  for (let i = 0; i < 36; i++) {
+    const picks = [0, 1, 2].map(j => ids[(i * (3 + 2 * j) + j * 5) % ids.length]);
+    const unique = [...new Set(picks)];
+    pool.push({ key: `Volum demonstrativ#${i + 1}#${i + 1}`, items: unique.map((id, j) => ({ id, strong: (i + j) % 3 !== 0 })) });
+  }
+  return pool;
+}
+
+// pool: [{ key, items: [{ id, strong }] }]. Returns [{ name, items }] in the
+// same shape as an imported annotation file.
+function demoSets(pool) {
+  const verdict = (who, i, j, strong) => {
+    const base = strong ? 'ok' : 'no';
+    const flip = who === 0 ? false : who === 1 ? (i * 7 + j * 3 + 2) % 5 === 0 : (i + j * 2) % 4 === 0;
+    return flip ? (base === 'ok' ? 'no' : 'ok') : base;
+  };
+  return DEMO_NAMES.map((name, who) => {
+    const items = {};
+    pool.forEach((p, i) => {
+      const verdicts = {};
+      p.items.forEach((it, j) => { verdicts[it.id] = verdict(who, i, j, it.strong); });
+      const added = { regions: [], fortresses: [], themes: [] };
+      if (who === 2 && i % 9 === 0 && !('f:Hotin (Khotyn)' in verdicts)) added.fortresses.push('Hotin (Khotyn)');
+      items[p.key] = { verdicts, added, note: '' };
+    });
+    return { name, items: sanitizeAnnotations(items) };
+  });
+}
